@@ -6,7 +6,7 @@ replace (
 	github.com/Digital-Shane/treeview => ../..
 )
 require (
-	github.com/Digital-Shane/treeview v1.8.1
+	github.com/Digital-Shane/treeview v1.8.2
 	github.com/aws/aws-sdk-go-v2 v1.38.3
 	github.com/aws/aws-sdk-go-v2/config v1.31.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.87.1
