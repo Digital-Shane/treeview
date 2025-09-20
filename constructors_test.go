@@ -12,7 +12,7 @@ func TestNewTree(t *testing.T) {
 	tests := []struct {
 		name    string
 		nodes   []*Node[string]
-		opts    []option[string]
+		opts    []Option[string]
 		wantLen int
 		wantNil bool
 		checkFn func(*testing.T, *Tree[string])
@@ -70,7 +70,7 @@ func TestNewTree(t *testing.T) {
 				NewNode("2", "Node 2", "filter"),
 				NewNode("3", "Node 3", "keep"),
 			},
-			opts: []option[string]{
+			opts: []Option[string]{
 				WithFilterFunc(func(data string) bool {
 					return data != "filter"
 				}),
@@ -95,7 +95,7 @@ func TestNewTree(t *testing.T) {
 				root.AddChild(child)
 				return []*Node[string]{root}
 			}(),
-			opts: []option[string]{
+			opts: []Option[string]{
 				WithMaxDepth[string](1),
 			},
 			wantLen: 1,
@@ -116,7 +116,7 @@ func TestNewTree(t *testing.T) {
 				NewNode("1", "Node 1", "expand"),
 				NewNode("2", "Node 2", "collapse"),
 			},
-			opts: []option[string]{
+			opts: []Option[string]{
 				WithExpandFunc[string](func(node *Node[string]) bool {
 					return *node.Data() == "expand"
 				}),
@@ -140,7 +140,7 @@ func TestNewTree(t *testing.T) {
 				NewNode("2", "Node 2", "b"),
 				NewNode("3", "Node 3", "c"),
 			},
-			opts: []option[string]{
+			opts: []Option[string]{
 				WithProgressCallback[string](func(processed int, n *Node[string]) {
 					// simple no-op to ensure it is invoked; we rely on counting side effects
 				}),
@@ -203,7 +203,7 @@ func TestNewTreeFromNestedData(t *testing.T) {
 		name      string
 		items     []testNestedItem
 		provider  NestedDataProvider[testNestedItem]
-		opts      []option[testNestedItem]
+		opts      []Option[testNestedItem]
 		wantNodes int
 		wantErr   error
 		checkFn   func(*testing.T, *Tree[testNestedItem])
@@ -275,7 +275,7 @@ func TestNewTreeFromNestedData(t *testing.T) {
 				},
 			},
 			provider: &testNestedProvider{},
-			opts: []option[testNestedItem]{
+			opts: []Option[testNestedItem]{
 				WithFilterFunc(func(item testNestedItem) bool {
 					return item.data != "filter"
 				}),
@@ -311,7 +311,7 @@ func TestNewTreeFromNestedData(t *testing.T) {
 				},
 			},
 			provider: &testNestedProvider{},
-			opts: []option[testNestedItem]{
+			opts: []Option[testNestedItem]{
 				WithMaxDepth[testNestedItem](1),
 			},
 			wantNodes: 1,
@@ -340,7 +340,7 @@ func TestNewTreeFromNestedData(t *testing.T) {
 				},
 			},
 			provider: &testNestedProvider{},
-			opts: []option[testNestedItem]{
+			opts: []Option[testNestedItem]{
 				WithTraversalCap[testNestedItem](3),
 			},
 			wantNodes: 1,
@@ -366,9 +366,9 @@ func TestNewTreeFromNestedData(t *testing.T) {
 			provider:  &testNestedProvider{},
 			wantNodes: 1,
 			checkFn: func(t *testing.T, tree *Tree[testNestedItem]) {
-				// The callback assertion is performed inside the option via closure.
+				// The callback assertion is performed inside the Option via closure.
 			},
-			opts: []option[testNestedItem]{
+			opts: []Option[testNestedItem]{
 				WithProgressCallback[testNestedItem](func(processed int, n *Node[testNestedItem]) {
 					_ = processed // intentionally ignore; existence proves invocation path compiles
 					if n == nil {
@@ -451,7 +451,7 @@ func TestNewTreeFromFlatData(t *testing.T) {
 		name      string
 		items     []testFlatItem
 		provider  FlatDataProvider[testFlatItem]
-		opts      []option[testFlatItem]
+		opts      []Option[testFlatItem]
 		wantRoots int
 		wantErr   bool
 		checkFn   func(*testing.T, *Tree[testFlatItem])
@@ -537,7 +537,7 @@ func TestNewTreeFromFlatData(t *testing.T) {
 				{id: "3", name: "Grandchild", parentID: "2"},
 			},
 			provider: &testFlatProvider{},
-			opts: []option[testFlatItem]{
+			opts: []Option[testFlatItem]{
 				WithMaxDepth[testFlatItem](1),
 			},
 			wantRoots: 1,
@@ -561,7 +561,7 @@ func TestNewTreeFromFlatData(t *testing.T) {
 				{id: "4", name: "Child 3", parentID: "1"},
 			},
 			provider: &testFlatProvider{},
-			opts: []option[testFlatItem]{
+			opts: []Option[testFlatItem]{
 				WithTraversalCap[testFlatItem](2),
 			},
 			wantRoots: 1,
@@ -587,7 +587,7 @@ func TestNewTreeFromFlatData(t *testing.T) {
 				{id: "2", name: "Child", parentID: "1"},
 			},
 			provider: &testFlatProvider{},
-			opts: []option[testFlatItem]{
+			opts: []Option[testFlatItem]{
 				WithProgressCallback[testFlatItem](func(processed int, n *Node[testFlatItem]) {
 					_ = processed
 					if n == nil {
@@ -658,7 +658,7 @@ func TestNewTreeFromFileSystem(t *testing.T) {
 		name           string
 		path           string
 		followSymlinks bool
-		opts           []option[FileInfo]
+		opts           []Option[FileInfo]
 		wantErr        bool
 		checkFn        func(*testing.T, *Tree[FileInfo])
 	}{
@@ -706,7 +706,7 @@ func TestNewTreeFromFileSystem(t *testing.T) {
 			name:           "with_max_depth",
 			path:           tmpDir,
 			followSymlinks: false,
-			opts: []option[FileInfo]{
+			opts: []Option[FileInfo]{
 				WithMaxDepth[FileInfo](1),
 			},
 			checkFn: func(t *testing.T, tree *Tree[FileInfo]) {
@@ -725,7 +725,7 @@ func TestNewTreeFromFileSystem(t *testing.T) {
 			name:           "with_filter",
 			path:           tmpDir,
 			followSymlinks: false,
-			opts: []option[FileInfo]{
+			opts: []Option[FileInfo]{
 				WithFilterFunc(func(info FileInfo) bool {
 					return filepath.Ext(info.Path) != ".txt"
 				}),
@@ -751,7 +751,7 @@ func TestNewTreeFromFileSystem(t *testing.T) {
 			name:           "with_traversal_cap",
 			path:           tmpDir,
 			followSymlinks: false,
-			opts: []option[FileInfo]{
+			opts: []Option[FileInfo]{
 				WithTraversalCap[FileInfo](3),
 			},
 			wantErr: true,
@@ -760,7 +760,7 @@ func TestNewTreeFromFileSystem(t *testing.T) {
 			name:           "with_progress_callback",
 			path:           tmpDir,
 			followSymlinks: false,
-			opts: []option[FileInfo]{
+			opts: []Option[FileInfo]{
 				WithProgressCallback[FileInfo](func(processed int, n *Node[FileInfo]) {
 					_ = processed
 					if n == nil {

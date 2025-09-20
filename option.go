@@ -22,69 +22,69 @@ type ProgressCallback[T any] func(processed int, node *Node[T])
 // list. The offset is usually ±1 but can be any integer.
 type FocusPolicyFn[T any] func(ctx context.Context, visible []*Node[T], current *Node[T], offset int) (*Node[T], error)
 
-// option is the unified functional option type used by all tree constructors.
+// Option is the unified functional Option type used by all tree constructors.
 // It allows callers to provide build-time and run-time configurations in a
 // single, flat list.
-type option[T any] func(*masterConfig[T])
+type Option[T any] func(*MasterConfig[T])
 
 // WithProvider specifies the NodeProvider to use for rendering nodes.
 // The provider controls how nodes are formatted, styled, and displayed.
-func WithProvider[T any](p NodeProvider[T]) option[T] {
-	return func(cfg *masterConfig[T]) {
+func WithProvider[T any](p NodeProvider[T]) Option[T] {
+	return func(cfg *MasterConfig[T]) {
 		cfg.provider = p
 	}
 }
 
 // WithSearcher overwrites the algorithm used when the search feature is invoked.
-func WithSearcher[T any](fn SearchFn[T]) option[T] {
-	return func(cfg *masterConfig[T]) {
+func WithSearcher[T any](fn SearchFn[T]) Option[T] {
+	return func(cfg *MasterConfig[T]) {
 		cfg.searcher = fn
 	}
 }
 
 // WithFocusPolicy replaces the logic that decides which node should be focused
 // after search or navigation.
-func WithFocusPolicy[T any](fn FocusPolicyFn[T]) option[T] {
-	return func(cfg *masterConfig[T]) {
+func WithFocusPolicy[T any](fn FocusPolicyFn[T]) Option[T] {
+	return func(cfg *MasterConfig[T]) {
 		cfg.focusPol = fn
 	}
 }
 
 // WithExpandFunc installs a predicate that decides for each node whether it
 // should start expanded.
-func WithExpandFunc[T any](fn ExpandFn[T]) option[T] {
-	return func(cfg *masterConfig[T]) {
+func WithExpandFunc[T any](fn ExpandFn[T]) Option[T] {
+	return func(cfg *MasterConfig[T]) {
 		cfg.expandFunc = fn
 	}
 }
 
 // WithExpandAll expands all nodes by default.
-func WithExpandAll[T any]() option[T] {
-	return func(cfg *masterConfig[T]) {
+func WithExpandAll[T any]() Option[T] {
+	return func(cfg *MasterConfig[T]) {
 		cfg.expandFunc = func(*Node[T]) bool { return true }
 	}
 }
 
 // WithFilterFunc installs a predicate that decides for each node whether it
 // should be included in the tree.
-func WithFilterFunc[T any](filter FilterFn[T]) option[T] {
-	return func(cfg *masterConfig[T]) {
+func WithFilterFunc[T any](filter FilterFn[T]) Option[T] {
+	return func(cfg *MasterConfig[T]) {
 		cfg.filterFunc = filter
 	}
 }
 
 // WithMaxDepth limits how deep the walker descends into directories or other
 // data structures. Use a negative depth for no limit (default).
-func WithMaxDepth[T any](d int) option[T] {
-	return func(c *masterConfig[T]) {
+func WithMaxDepth[T any](d int) Option[T] {
+	return func(c *MasterConfig[T]) {
 		c.maxDepth = d
 	}
 }
 
 // WithTraversalCap sets an upper bound on the total number of entries visited
 // during tree construction. A value ≤ 0 is interpreted as no limit.
-func WithTraversalCap[T any](cap int) option[T] {
-	return func(c *masterConfig[T]) {
+func WithTraversalCap[T any](cap int) Option[T] {
+	return func(c *MasterConfig[T]) {
 		c.traversalCap = cap
 	}
 }
@@ -93,8 +93,8 @@ func WithTraversalCap[T any](cap int) option[T] {
 // node is created during any of the constructor build phases. It is not
 // invoked by NewTree (which accepts pre-built nodes) except once per root
 // node supplied so callers have a consistent hook.
-func WithProgressCallback[T any](cb ProgressCallback[T]) option[T] {
-	return func(c *masterConfig[T]) {
+func WithProgressCallback[T any](cb ProgressCallback[T]) Option[T] {
+	return func(c *MasterConfig[T]) {
 		c.progressCb = cb
 	}
 }
@@ -102,17 +102,17 @@ func WithProgressCallback[T any](cb ProgressCallback[T]) option[T] {
 // WithTruncate sets the maximum width for rendered lines. Lines longer than
 // this width will be truncated with an ellipsis. A width of 0 disables
 // truncation (default).
-func WithTruncate[T any](width int) option[T] {
-	return func(c *masterConfig[T]) {
+func WithTruncate[T any](width int) Option[T] {
+	return func(c *MasterConfig[T]) {
 		c.truncateWidth = width
 	}
 }
 
-// masterConfig is the internal, unexported struct that aggregates options from
+// MasterConfig is the structure that aggregates options from
 // different domains (build, filesystem, tree). It is used by the unified
 // constructors to collect and dispatch options to the appropriate internal
 // functions.
-type masterConfig[T any] struct {
+type MasterConfig[T any] struct {
 	// Options used during the build process.
 	maxDepth     int
 	traversalCap int
@@ -127,9 +127,9 @@ type masterConfig[T any] struct {
 	truncateWidth int // Maximum width for rendered lines (0 = no truncation)
 }
 
-// newMasterConfig is a helper that creates a masterConfig, applies defaults, and then user-provided options.
-func newMasterConfig[T any](opts []option[T], defaults ...option[T]) *masterConfig[T] {
-	cfg := &masterConfig[T]{
+// NewMasterConfig is a helper that creates a MasterConfig, applies defaults, and then user-provided options.
+func NewMasterConfig[T any](opts []Option[T], defaults ...Option[T]) *MasterConfig[T] {
+	cfg := &MasterConfig[T]{
 		searcher:     defaultSearchFn[T],
 		focusPol:     defaultFocusPolicy[T],
 		provider:     NewDefaultNodeProvider[T](),
@@ -157,14 +157,16 @@ func newMasterConfig[T any](opts []option[T], defaults ...option[T]) *masterConf
 	return cfg
 }
 
-func (cfg *masterConfig[T]) shouldFilter(item T) bool {
+// ShouldFilter evaluates whether the given item should be excluded based on the configured filter function.
+func (cfg *MasterConfig[T]) ShouldFilter(item T) bool {
 	if cfg.filterFunc == nil {
 		return false
 	}
 	return !cfg.filterFunc(item)
 }
 
-func (cfg *masterConfig[T]) handleExpansion(node *Node[T]) {
+// HandleExpansion checks if a node should be expanded based on the configured expand function and expands it if true.
+func (cfg *MasterConfig[T]) HandleExpansion(node *Node[T]) {
 	if cfg.expandFunc == nil {
 		return
 	}
@@ -173,22 +175,24 @@ func (cfg *masterConfig[T]) handleExpansion(node *Node[T]) {
 	}
 }
 
-func (cfg *masterConfig[T]) hasTraversalCapBeenReached(nodeCount int) bool {
+// HasTraversalCapBeenReached checks if the current node count has reached or exceeded the configured traversal cap.
+func (cfg *MasterConfig[T]) HasTraversalCapBeenReached(nodeCount int) bool {
 	if cfg.traversalCap <= 0 {
 		return false
 	}
 	return nodeCount >= cfg.traversalCap
 }
 
-func (cfg *masterConfig[T]) hasDepthLimitBeenReached(currentDepth int) bool {
+// HasDepthLimitBeenReached checks if the given current depth has reached or exceeded the configured maximum depth limit.
+func (cfg *MasterConfig[T]) HasDepthLimitBeenReached(currentDepth int) bool {
 	if cfg.maxDepth <= 0 {
 		return false
 	}
 	return currentDepth >= cfg.maxDepth
 }
 
-// reportProgress invokes the configured progress callback (if any).
-func (cfg *masterConfig[T]) reportProgress(processed int, node *Node[T]) {
+// ReportProgress invokes the configured progress callback (if any).
+func (cfg *MasterConfig[T]) ReportProgress(processed int, node *Node[T]) {
 	if cfg.progressCb == nil || node == nil {
 		return
 	}
@@ -197,7 +201,7 @@ func (cfg *masterConfig[T]) reportProgress(processed int, node *Node[T]) {
 
 // defaultSearchFn implements a simple case-insensitive search strategy that matches any substring
 // in the node's ID, name, or data (if it's a string or has a String() method).
-func defaultSearchFn[T any](ctx context.Context, node *Node[T], term string) bool {
+func defaultSearchFn[T any](_ context.Context, node *Node[T], term string) bool {
 	// Empty term means no matches
 	if term == "" {
 		return false
@@ -233,7 +237,7 @@ func defaultSearchFn[T any](ctx context.Context, node *Node[T], term string) boo
 
 // defaultFocusPolicy implements a simple focus navigation strategy.
 // It moves through the visible nodes linearly, wrapping at boundaries.
-func defaultFocusPolicy[T any](ctx context.Context, visible []*Node[T], current *Node[T], offset int) (*Node[T], error) {
+func defaultFocusPolicy[T any](_ context.Context, visible []*Node[T], current *Node[T], offset int) (*Node[T], error) {
 	// Handle empty list
 	if len(visible) == 0 {
 		return nil, nil

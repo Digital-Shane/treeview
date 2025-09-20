@@ -84,7 +84,7 @@ func NewDefaultNodeProvider[T any](opts ...ProviderOption[T]) *DefaultNodeProvid
 	return p
 }
 
-// WithDefaultFolderRules is a provider option that adds icon and style rules for folder nodes.
+// WithDefaultFolderRules is a provider Option that adds icon and style rules for folder nodes.
 // A node is considered a folder if its data object implements the `IsDir() bool` method.
 func WithDefaultFolderRules[T any]() ProviderOption[T] {
 	return func(p *DefaultNodeProvider[T]) {
@@ -115,7 +115,7 @@ func WithDefaultFolderRules[T any]() ProviderOption[T] {
 	}
 }
 
-// WithDefaultFileRules is a provider option that adds a default icon for file nodes.
+// WithDefaultFileRules is a provider Option that adds a default icon for file nodes.
 // A node is considered a file if it is not a folder.
 func WithDefaultFileRules[T any]() ProviderOption[T] {
 	return func(p *DefaultNodeProvider[T]) {
@@ -126,7 +126,7 @@ func WithDefaultFileRules[T any]() ProviderOption[T] {
 	}
 }
 
-// WithDefaultIcon is a provider option that sets the default icon for nodes that
+// WithDefaultIcon is a provider Option that sets the default icon for nodes that
 // do not match any other icon rule.
 func WithDefaultIcon[T any](icon string) ProviderOption[T] {
 	return func(p *DefaultNodeProvider[T]) {
@@ -137,7 +137,7 @@ func WithDefaultIcon[T any](icon string) ProviderOption[T] {
 	}
 }
 
-// WithIconRule is a provider option that adds a custom icon rule.
+// WithIconRule is a provider Option that adds a custom icon rule.
 // Rules are evaluated in the order they are added
 func WithIconRule[T any](predicate func(*Node[T]) bool, icon string) ProviderOption[T] {
 	return func(p *DefaultNodeProvider[T]) {
@@ -148,7 +148,7 @@ func WithIconRule[T any](predicate func(*Node[T]) bool, icon string) ProviderOpt
 	}
 }
 
-// WithStyleRule is a provider option that adds a custom style rule.
+// WithStyleRule is a provider Option that adds a custom style rule.
 func WithStyleRule[T any](predicate func(*Node[T]) bool, style, focused lipgloss.Style) ProviderOption[T] {
 	return func(p *DefaultNodeProvider[T]) {
 		p.styleRules = append(p.styleRules, styleRule[T]{
@@ -237,7 +237,7 @@ func (p *DefaultNodeProvider[T]) Format(node *Node[T]) string {
 	return node.Name()
 }
 
-// WithFileExtensionRules is a provider option that adds icon and style rules based on file extensions.
+// WithFileExtensionRules is a provider Option that adds icon and style rules based on file extensions.
 func WithFileExtensionRules[T any]() ProviderOption[T] {
 	return func(p *DefaultNodeProvider[T]) {
 

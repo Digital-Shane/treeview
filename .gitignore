@@ -15,3 +15,7 @@ out/
 coverage/
 *.out
 coverage.html
+
+# tools settings
+.golangci.yml
+go.work*

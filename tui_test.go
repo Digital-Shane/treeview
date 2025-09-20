@@ -202,7 +202,7 @@ func TestTuiTreeModelOptions(t *testing.T) {
 			test.opt(model)
 
 			if !test.want(model) {
-				t.Errorf("%s option did not set expected value", test.name)
+				t.Errorf("%s Option did not set expected value", test.name)
 			}
 		})
 	}

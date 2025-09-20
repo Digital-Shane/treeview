@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// TuiTreeModelOption represents a functional option that configures a TuiTreeModel instance directly.
+// TuiTreeModelOption represents a functional Option that configures a TuiTreeModel instance directly.
 type TuiTreeModelOption[T any] func(*TuiTreeModel[T])
 
 // WithTuiWidth sets the viewport width.
@@ -430,13 +430,13 @@ func (m *TuiTreeModel[T]) NavBar() string {
 		navItems = append(navItems, m.addNavItem(m.keyMap.SearchAccept, "Accept"))
 		navItems = append(navItems, m.addNavItem(m.keyMap.SearchCancel, "Cancel"))
 	} else {
-		// In normal mode, add Search option
+		// In normal mode, add Search Option
 		navItems = append(navItems, m.addNavItem(m.keyMap.SearchStart, "Search"))
-		// Add quit option
+		// Add quit Option
 		navItems = append(navItems, m.addNavItem(m.keyMap.Quit, "Quit"))
 	}
 
-	// Add reset option
+	// Add reset Option
 	navItems = append(navItems, m.addNavItem(m.keyMap.Reset, "Reset"))
 
 	// Join all navigation items with consistent spacing
