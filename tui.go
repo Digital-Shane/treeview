@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbletea"
 )
 
 // TuiTreeModelOption represents a functional Option that configures a TuiTreeModel instance directly.
@@ -224,7 +224,7 @@ func (m *TuiTreeModel[T]) handleKeypress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case slices.Contains(m.keyMap.SearchDelete, key):
 			if len(m.searchTerm) > 0 {
 				m.searchTerm = m.searchTerm[:len(m.searchTerm)-1]
-				m.Search(m.searchTerm)
+				_, _ = m.Search(m.searchTerm)
 			}
 			return m, nil
 
@@ -236,7 +236,7 @@ func (m *TuiTreeModel[T]) handleKeypress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Add printable characters to search
 		if len(key) == 1 && key >= " " && key <= "~" {
 			m.searchTerm += key
-			m.Search(m.searchTerm)
+			_, _ = m.Search(m.searchTerm)
 			return m, nil
 		}
 	}
@@ -270,7 +270,7 @@ func (m *TuiTreeModel[T]) handleKeypress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.BeginSearch()
 		return m, nil
 	case slices.Contains(m.keyMap.Reset, key):
-		m.ShowAll(context.Background())
+		_ = m.ShowAll(context.Background())
 		return m, nil
 	}
 
@@ -463,7 +463,7 @@ func (m *TuiTreeModel[T]) updateViewportDimensions() {
 	m.viewport.Height = viewHeight
 
 	// Update tree truncation width to match viewport width
-	m.Tree.mu.Lock()
-	m.Tree.truncateWidth = m.width
-	m.Tree.mu.Unlock()
+	m.mu.Lock()
+	m.truncateWidth = m.width
+	m.mu.Unlock()
 }
