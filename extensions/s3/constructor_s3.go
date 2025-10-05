@@ -4,10 +4,17 @@ package s3
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"github.com/Digital-Shane/treeview"
 	"github.com/Digital-Shane/treeview/extensions/s3/internal/s3"
 )
+
+type safeThreadNode struct {
+	*treeview.Node[treeview.FileInfo]
+	sync.RWMutex
+}
 
 // NewTreeFromS3 creates a new tree structure based on files fetched from an S3 path, using configurable options.
 // Returns a pointer to a Tree structure or an error if an issue occurs during tree creation.
@@ -38,27 +45,30 @@ func buildFileSystemTreeForS3(ctx context.Context, path string, profile string,
 	if err != nil {
 		return nil, pathError(treeview.ErrPathResolution, path, err)
 	}
-	total := 1
-	rootNode := treeview.NewFileSystemNode(path, info)
-	cfg.HandleExpansion(rootNode)
+	total := int64(1)
+
+	rootNode := safeThreadNode{Node: treeview.NewFileSystemNode(path, info), RWMutex: sync.RWMutex{}}
+	cfg.HandleExpansion(rootNode.Node)
 	if info.IsDir() {
-		if err := scanDirS3(ctx, rootNode, 0, false, cfg, &total); err != nil {
+		if err := scanDirS3(ctx, &rootNode, 0, cfg, &total); err != nil {
 			return nil, err
 		}
 	}
-	return []*treeview.Node[treeview.FileInfo]{rootNode}, nil
+	return []*treeview.Node[treeview.FileInfo]{rootNode.Node}, nil
 }
 
 // scanDirS3 scans a bucket or key and its subdirectories, creating Node[treeview.FileInfo] for each entry.
 // It returns an error if the traversal cap is exceeded or if there is an error.
-func scanDirS3(ctx context.Context, parent *treeview.Node[treeview.FileInfo], depth int, followSymlinks bool,
-	cfg *treeview.MasterConfig[treeview.FileInfo], count *int) error {
+func scanDirS3(ctx context.Context, parent *safeThreadNode, depth int, cfg *treeview.MasterConfig[treeview.FileInfo], count *int64) error {
 	if cfg.HasDepthLimitBeenReached(depth) {
 		return nil
 	}
-	entries, err := s3.ReadDir(ctx, parent.Data().Path)
+	parent.RLock()
+	p := parent.Data().Path
+	parent.RUnlock()
+	entries, err := s3.ReadDir(ctx, p)
 	if err != nil {
-		return pathError(treeview.ErrDirectoryScan, parent.Data().Path, err)
+		return pathError(treeview.ErrDirectoryScan, p, err)
 	}
 	children := make([]*treeview.Node[treeview.FileInfo], 0, len(entries)) // preallocation of the capacity only.
 	for _, entry := range entries {
@@ -66,7 +76,7 @@ func scanDirS3(ctx context.Context, parent *treeview.Node[treeview.FileInfo], de
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		childPath := s3.Join(parent.Data().Path, entry.Name()) // entry.Name is the full key.
+		childPath := s3.Join(p, entry.Name()) // entry.Name is the full key.
 		info, err := entry.Info()
 		if err != nil {
 			return pathError(treeview.ErrFileSystem, childPath, err)
@@ -77,22 +87,27 @@ func scanDirS3(ctx context.Context, parent *treeview.Node[treeview.FileInfo], de
 		}) {
 			continue // Item was filtered out
 		}
-		childNode := treeview.NewFileSystemNode(childPath, info)
-		cfg.HandleExpansion(childNode)
-		*count++
-		cfg.ReportProgress(*count, childNode)
-		if cfg.HasTraversalCapBeenReached(*count) {
+		childNode := safeThreadNode{Node: treeview.NewFileSystemNode(childPath, info), RWMutex: sync.RWMutex{}}
+		cfg.HandleExpansion(childNode.Node)
+		atomic.AddInt64(count, 1)
+		val := int(atomic.LoadInt64(count))
+		cfg.ReportProgress(val, childNode.Node)
+		if cfg.HasTraversalCapBeenReached(val) {
 			return pathError(treeview.ErrTraversalLimit, childPath, nil)
 		}
 		if info.IsDir() {
-			if err := scanDirS3(ctx, childNode, depth+1, followSymlinks, cfg, count); err != nil {
+			if err := scanDirS3(ctx, &childNode, depth+1, cfg, count); err != nil {
 				return err
 			}
 		}
-		children = append(children, childNode)
+		childNode.RLock()
+		children = append(children, childNode.Node)
+		childNode.RUnlock()
 	}
 	if len(children) > 0 {
+		parent.Lock()
 		parent.SetChildren(children)
+		parent.Unlock()
 	}
 	return nil
 }
