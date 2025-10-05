@@ -59,7 +59,8 @@ func buildFileSystemTreeForS3(ctx context.Context, path string, profile string,
 
 // scanDirS3 scans a bucket or key and its subdirectories, creating Node[treeview.FileInfo] for each entry.
 // It returns an error if the traversal cap is exceeded or if there is an error.
-func scanDirS3(ctx context.Context, parent *safeThreadNode, depth int, cfg *treeview.MasterConfig[treeview.FileInfo], count *int64) error {
+func scanDirS3(ctx context.Context, parent *safeThreadNode, depth int, cfg *treeview.MasterConfig[treeview.FileInfo],
+	count *int64) error {
 	if cfg.HasDepthLimitBeenReached(depth) {
 		return nil
 	}
