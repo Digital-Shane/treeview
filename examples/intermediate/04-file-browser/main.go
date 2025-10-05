@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/Digital-Shane/treeview"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
