@@ -2,9 +2,8 @@ module github.com/Digital-Shane/treeview/extensions/s3
 
 go 1.25.0
 
-replace (
-	github.com/Digital-Shane/treeview => ../..
-)
+replace github.com/Digital-Shane/treeview => ../..
+
 require (
 	github.com/Digital-Shane/treeview v1.8.2
 	github.com/aws/aws-sdk-go-v2 v1.38.3
@@ -15,6 +14,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/pkg/errors v0.9.1
 	github.com/pterm/pterm v0.12.81
+	github.com/ysmood/gotrace v0.6.0
 )
 
 require (

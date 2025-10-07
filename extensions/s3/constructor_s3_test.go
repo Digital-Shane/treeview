@@ -10,6 +10,7 @@ import (
 )
 
 func TestNewTreeFromS3(t *testing.T) {
+	noLeakButPersistentHTTP(t)
 	tests := []struct {
 		path string
 
@@ -57,6 +58,5 @@ func TestNewTreeFromS3(t *testing.T) {
 					len(tr.Nodes()[0].Children()), ii+1)
 			}
 		}
-
 	}
 }

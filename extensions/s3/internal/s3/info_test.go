@@ -54,7 +54,7 @@ func Test_ReadDir(t *testing.T) {
 	}
 }
 
-func Test_DirEntry_is_interface(t *testing.T) {
+func Test_DirEntry_is_interface(_ *testing.T) {
 	var _ fs.DirEntry = (*DirEntry)(nil)
 }
 

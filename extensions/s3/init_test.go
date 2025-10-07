@@ -2,7 +2,10 @@ package s3
 
 import (
 	"path"
+	"strings"
 	"testing"
+
+	"github.com/ysmood/gotrace"
 
 	"github.com/Digital-Shane/treeview/extensions/s3/internal/localstack"
 )
@@ -45,4 +48,17 @@ func isPanic(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// noLeakButPersistentHTTP verifies whether there were no new running go routines after the current test excepted
+// the ones that HTTP may create for a persistent connection
+func noLeakButPersistentHTTP(t *testing.T) {
+	ign := gotrace.CombineIgnores(
+		gotrace.IgnoreCurrent(),
+		func(t *gotrace.Trace) bool {
+			return strings.Contains(t.Raw, "net/http.(*persistConn).writeLoop")
+		},
+		gotrace.IgnoreFuncs("internal/poll.runtime_pollWait"),
+	)
+	gotrace.CheckLeak(t, 0, ign)
 }

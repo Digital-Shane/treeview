@@ -64,7 +64,7 @@ func randomID() string {
 	choiceSize := len(choice)
 	for i := 0; i < size; i++ {
 		// generates the characters
-		s := rand.IntN(choiceSize)
+		s := rand.IntN(choiceSize) // #nosec G404 do not need true randomness.
 		buffer = append(buffer, choice[s])
 	}
 	return string(buffer)
