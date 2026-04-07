@@ -7,7 +7,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/charmbracelet/bubbles/viewport"
+	"charm.land/bubbles/v2/viewport"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -201,15 +201,16 @@ func renderTreeWithViewport[T any](ctx context.Context, tree *Tree[T], vp *viewp
 	focusedLineIndex := findFocusedLineIndex(ctx, tree)
 
 	// Auto-scroll to keep focused line visible BEFORE rendering
-	if focusedLineIndex >= 0 && vp.Height > 0 {
+	if focusedLineIndex >= 0 && vp.Height() > 0 {
 		// If focused line is above viewport, scroll up
-		if focusedLineIndex < vp.YOffset {
-			vp.YOffset = focusedLineIndex
-		} else if focusedLineIndex >= vp.YOffset+vp.Height {
+		if focusedLineIndex < vp.YOffset() {
+			vp.SetYOffset(focusedLineIndex)
+		} else if focusedLineIndex >= vp.YOffset()+vp.Height() {
 			// If focused line is below viewport, scroll down
 			// Keep one line of context if possible
-			vp.YOffset = focusedLineIndex - vp.Height + 1
-			vp.YOffset = max(vp.YOffset, 0)
+			offset := focusedLineIndex - vp.Height() + 1
+			offset = max(offset, 0)
+			vp.SetYOffset(offset)
 		}
 	}
 
@@ -258,12 +259,12 @@ func renderViewportOnly[T any](ctx context.Context, tree *Tree[T], vp *viewport.
 	}()
 
 	// Calculate the range of lines we need to render
-	startLine := vp.YOffset
-	endLine := vp.YOffset + vp.Height
+	startLine := vp.YOffset()
+	endLine := vp.YOffset() + vp.Height()
 
 	// Track state for single-pass rendering
 	currentLine := 0
-	renderBuffer := make([]string, 0, vp.Height) // Pre-allocate for viewport height
+	renderBuffer := make([]string, 0, vp.Height()) // Pre-allocate for viewport height
 
 	// ancestorIsLastChild tracks whether each ancestor (at each depth level) was the last
 	// child among its siblings. This determines whether we draw a vertical continuation

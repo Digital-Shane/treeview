@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/Digital-Shane/treeview"
-	"github.com/charmbracelet/bubbletea"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	)
 
 	// Create the program with navigation help bar
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 
 	// Run the program directly
 	if _, err := p.Run(); err != nil {

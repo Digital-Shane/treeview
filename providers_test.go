@@ -3,7 +3,7 @@ package treeview
 import (
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // Test helpers for creating test nodes

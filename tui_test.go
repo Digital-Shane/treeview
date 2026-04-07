@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -406,11 +406,11 @@ func TestUpdateViewportDimensions(t *testing.T) {
 			model.showSearch = test.showSearch
 			model.updateViewportDimensions()
 
-			if model.viewport.Width != test.wantWidth {
+			if model.viewport.Width() != test.wantWidth {
 				t.Errorf("updateViewportDimensions() viewport width = %v, want %v", model.viewport.Width, test.wantWidth)
 			}
 
-			if model.viewport.Height != test.wantHeight {
+			if model.viewport.Height() != test.wantHeight {
 				t.Errorf("updateViewportDimensions() viewport height = %v, want %v", model.viewport.Height, test.wantHeight)
 			}
 		})
@@ -567,23 +567,23 @@ func TestHandleKeypress_Navigation(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(test.key)}
+			msg := tea.KeyPressMsg{Text: test.key}
 
 			switch test.key {
 			case "esc":
-				msg = tea.KeyMsg{Type: tea.KeyEsc}
+				msg = tea.KeyPressMsg{Code: tea.KeyEsc}
 			case "up":
-				msg = tea.KeyMsg{Type: tea.KeyUp}
+				msg = tea.KeyPressMsg{Code: tea.KeyUp}
 			case "down":
-				msg = tea.KeyMsg{Type: tea.KeyDown}
+				msg = tea.KeyPressMsg{Code: tea.KeyDown}
 			case "right":
-				msg = tea.KeyMsg{Type: tea.KeyRight}
+				msg = tea.KeyPressMsg{Code: tea.KeyRight}
 			case "left":
-				msg = tea.KeyMsg{Type: tea.KeyLeft}
+				msg = tea.KeyPressMsg{Code: tea.KeyLeft}
 			case "enter":
-				msg = tea.KeyMsg{Type: tea.KeyEnter}
+				msg = tea.KeyPressMsg{Code: tea.KeyEnter}
 			case "ctrl+r":
-				msg = tea.KeyMsg{Type: tea.KeyCtrlR}
+				msg = tea.KeyPressMsg{Text: "ctrl+r"}
 			}
 
 			gotModel, gotCmd := model.handleKeypress(msg)
@@ -678,20 +678,20 @@ func TestHandleKeypress_SearchMode(t *testing.T) {
 			model.showSearch = true
 			model.searchTerm = test.initialTerm
 
-			var msg tea.KeyMsg
+			var msg tea.KeyPressMsg
 			switch test.key {
 			case "enter":
-				msg = tea.KeyMsg{Type: tea.KeyEnter}
+				msg = tea.KeyPressMsg{Code: tea.KeyEnter}
 			case "esc":
-				msg = tea.KeyMsg{Type: tea.KeyEsc}
+				msg = tea.KeyPressMsg{Code: tea.KeyEsc}
 			case "backspace":
-				msg = tea.KeyMsg{Type: tea.KeyBackspace}
+				msg = tea.KeyPressMsg{Code: tea.KeyBackspace}
 			case "delete":
-				msg = tea.KeyMsg{Type: tea.KeyDelete}
+				msg = tea.KeyPressMsg{Code: tea.KeyDelete}
 			case "ctrl+r":
-				msg = tea.KeyMsg{Type: tea.KeyCtrlR}
+				msg = tea.KeyPressMsg{Text: "ctrl+r"}
 			default:
-				msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(test.key)}
+				msg = tea.KeyPressMsg{Text: test.key}
 			}
 
 			gotModel, _ := model.handleKeypress(msg)
@@ -850,7 +850,8 @@ func TestView(t *testing.T) {
 			model.showSearch = test.showSearch
 			model.searchTerm = test.searchTerm
 
-			got := model.View()
+			v := model.View()
+			got := v.Content
 
 			for _, want := range test.wantContains {
 				if !strings.Contains(got, want) {

@@ -1,7 +1,7 @@
 package treeview
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // NodeProvider lets you plug custom rendering logic into treeview. The generic

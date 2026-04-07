@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/Digital-Shane/treeview"
-	"github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	model := NewFileBrowserModel(initialPath)
 
 	// Create the program
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 
 	// Run the program
 	if _, err := p.Run(); err != nil {
@@ -269,9 +269,14 @@ func (m *FileBrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the complete file browser interface
-func (m *FileBrowserModel) View() string {
+func (m *FileBrowserModel) View() tea.View {
+	var view tea.View
+
+	view.AltScreen = true
+
 	if m.treeModel == nil {
-		return "Loading..."
+		view.SetContent("Loading...")
+		return view
 	}
 
 	var b strings.Builder
@@ -281,13 +286,15 @@ func (m *FileBrowserModel) View() string {
 	if m.showMetadata {
 		b.WriteString(m.renderTwoPanelLayout())
 	} else {
-		b.WriteString(m.treeModel.View())
+		b.WriteString(m.treeModel.View().Content)
 	}
 
 	b.WriteByte('\n')
 	b.WriteString(m.renderStatusBar())
 
-	return b.String()
+	view.SetContent(b.String())
+
+	return view
 }
 
 // renderHeader creates the header bar
@@ -309,7 +316,7 @@ func (m *FileBrowserModel) renderTwoPanelLayout() string {
 	metadataView := m.renderMetadataPanel(metadataWidth)
 	treeView := m.treeModel.View()
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, metadataView, " │ ", treeView)
+	return lipgloss.JoinHorizontal(lipgloss.Top, metadataView, " │ ", treeView.Content)
 }
 
 // renderMetadataPanel creates the metadata side panel
@@ -385,7 +392,7 @@ func (m *FileBrowserModel) renderMultiNodeMetadata(nodes []*treeview.Node[treevi
 	// Count by type
 	var files, dirs int
 	var totalSize int64
-	var extensions = make(map[string]int)
+	extensions := make(map[string]int)
 
 	for _, node := range nodes {
 		data := node.Data()

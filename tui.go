@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	"github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 )
 
 // TuiTreeModelOption represents a functional Option that configures a TuiTreeModel instance directly.
@@ -134,7 +134,7 @@ type TuiTreeModel[T any] struct {
 //	)
 func NewTuiTreeModel[T any](tree *Tree[T], opts ...TuiTreeModelOption[T]) *TuiTreeModel[T] {
 	// Initialize the TUI model with default components
-	vp := viewport.New(80, 24)
+	vp := viewport.New(viewport.WithWidth(80), viewport.WithHeight(24))
 	m := &TuiTreeModel[T]{
 		Tree:   tree,
 		keyMap: DefaultKeyMap(),
@@ -382,11 +382,11 @@ func (m *TuiTreeModel[T]) Search(term string) ([]*Node[T], error) {
 }
 
 // View renders the tree plus an optional search bar and navigation legend.
-func (m *TuiTreeModel[T]) View() string {
+func (m *TuiTreeModel[T]) View() tea.View {
 	// Render the tree
 	result, err := renderTreeWithViewport(context.Background(), m.Tree, m.viewport)
 	if err != nil {
-		return "Error rendering tree: " + err.Error()
+		return tea.NewView("Error rendering tree: " + err.Error())
 	}
 
 	// Add search UI at the top if in search mode
@@ -401,7 +401,7 @@ func (m *TuiTreeModel[T]) View() string {
 		result += m.NavBar()
 	}
 
-	return result
+	return tea.NewView(result)
 }
 
 // NavBar returns the navigation bar string that shows available keyboard commands.
@@ -459,8 +459,8 @@ func (m *TuiTreeModel[T]) updateViewportDimensions() {
 		viewHeight -= 2
 	}
 
-	m.viewport.Width = m.width
-	m.viewport.Height = viewHeight
+	m.viewport.SetWidth(m.width)
+	m.viewport.SetHeight(viewHeight)
 
 	// Update tree truncation width to match viewport width
 	m.mu.Lock()
