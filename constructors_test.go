@@ -755,6 +755,18 @@ func TestNewTreeFromFileSystem(t *testing.T) {
 				WithTraversalCap[FileInfo](3),
 			},
 			wantErr: true,
+			checkFn: func(t *testing.T, tree *Tree[FileInfo]) {
+				t.Helper()
+				if tree == nil {
+					t.Fatal("NewTreeFromFileSystem(traversal cap) tree = nil, want partial tree")
+				}
+				if len(tree.nodes) != 1 {
+					t.Fatalf("NewTreeFromFileSystem(traversal cap) root count = %d, want 1", len(tree.nodes))
+				}
+				if len(tree.nodes[0].Children()) == 0 {
+					t.Fatal("NewTreeFromFileSystem(traversal cap) root has no partial children")
+				}
+			},
 		},
 		{
 			name:           "with_progress_callback",
@@ -778,6 +790,9 @@ func TestNewTreeFromFileSystem(t *testing.T) {
 			if test.wantErr {
 				if err == nil {
 					t.Errorf("NewTreeFromFileSystem(%s) error = nil, want error", test.name)
+				}
+				if test.checkFn != nil {
+					test.checkFn(t, got)
 				}
 				return
 			}

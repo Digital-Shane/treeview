@@ -28,13 +28,13 @@ import (
 // functions provided by the other constructors to filter, limit, and
 // expand the tree during construction.
 func NewTree[T any](nodes []*Node[T], opts ...Option[T]) *Tree[T] {
-	cfg := NewMasterConfig(opts)
+	cfg := newMasterConfig(opts)
 
 	// Report progress for user-supplied nodes so the callback can still be
 	// leveraged even when callers pre-assemble the slice.
 	if cfg.progressCb != nil {
 		for i, n := range nodes {
-			cfg.ReportProgress(i+1, n)
+			cfg.reportProgress(i+1, n)
 		}
 	}
 
@@ -53,11 +53,10 @@ func NewTree[T any](nodes []*Node[T], opts ...Option[T]) *Tree[T] {
 		applyExpansion(nodes, cfg)
 	}
 
-	return NewTreeFromCfg(nodes, cfg)
+	return newTree(nodes, cfg)
 }
 
-// NewTreeFromCfg creates a new Tree with the provided nodes and the configuration `cfg`.
-func NewTreeFromCfg[T any](nodes []*Node[T], cfg *MasterConfig[T]) *Tree[T] {
+func newTree[T any](nodes []*Node[T], cfg *masterConfig[T]) *Tree[T] {
 	// Initialize focus to the first node if available
 	var focusedNodes []*Node[T]
 	focusedIDs := make(map[string]bool)
@@ -127,7 +126,7 @@ func NewTreeFromNestedData[T any](
 	provider NestedDataProvider[T],
 	opts ...Option[T],
 ) (*Tree[T], error) {
-	cfg := NewMasterConfig(opts)
+	cfg := newMasterConfig(opts)
 
 	// Build the node hierarchy using the collected build options.
 	nodes, err := buildTreeFromNestedData(ctx, items, provider, cfg)
@@ -137,11 +136,11 @@ func NewTreeFromNestedData[T any](
 		err = fmt.Errorf("%w: %w", ErrTreeConstruction, err)
 	}
 
-	tree := NewTreeFromCfg(nodes, cfg)
+	tree := newTree(nodes, cfg)
 	return tree, err
 }
 
-func buildTreeFromNestedData[T any](ctx context.Context, items []T, provider NestedDataProvider[T], cfg *MasterConfig[T]) ([]*Node[T], error) {
+func buildTreeFromNestedData[T any](ctx context.Context, items []T, provider NestedDataProvider[T], cfg *masterConfig[T]) ([]*Node[T], error) {
 	nodeCount := 0
 	hitTraversalCap := false
 
@@ -152,10 +151,10 @@ func buildTreeFromNestedData[T any](ctx context.Context, items []T, provider Nes
 		if err := ctx.Err(); err != nil {
 			return nil, err // Context has ended
 		}
-		if cfg.ShouldFilter(item) {
+		if cfg.shouldFilter(item) {
 			return nil, nil // Item was filtered out
 		}
-		if cfg.HasTraversalCapBeenReached(nodeCount) {
+		if cfg.hasTraversalCapBeenReached(nodeCount) {
 			hitTraversalCap = true // We've hit the traversal cap
 			return nil, nil
 		}
@@ -169,11 +168,11 @@ func buildTreeFromNestedData[T any](ctx context.Context, items []T, provider Nes
 
 		// Increment node count & report progress
 		nodeCount++
-		cfg.ReportProgress(nodeCount, n)
+		cfg.reportProgress(nodeCount, n)
 
 		// Check depth limit
-		if cfg.HasDepthLimitBeenReached(depth) {
-			cfg.HandleExpansion(n)
+		if cfg.hasDepthLimitBeenReached(depth) {
+			cfg.handleExpansion(n)
 			// Return the node without children.
 			return n, nil
 		}
@@ -190,7 +189,7 @@ func buildTreeFromNestedData[T any](ctx context.Context, items []T, provider Nes
 			}
 		}
 
-		cfg.HandleExpansion(n)
+		cfg.handleExpansion(n)
 		return n, nil
 	}
 
@@ -261,7 +260,7 @@ func NewTreeFromFlatData[T any](
 	opts ...Option[T],
 ) (*Tree[T], error) {
 	// 1. Create config from options.
-	cfg := NewMasterConfig(opts)
+	cfg := newMasterConfig(opts)
 
 	// 2. Build the node hierarchy.
 	nodes, err := buildTreeFromFlatData(ctx, items, provider, cfg)
@@ -271,11 +270,11 @@ func NewTreeFromFlatData[T any](
 		err = fmt.Errorf("%w: %w", ErrTreeConstruction, err)
 	}
 
-	tree := NewTreeFromCfg(nodes, cfg)
+	tree := newTree(nodes, cfg)
 	return tree, err
 }
 
-func buildTreeFromFlatData[T any](ctx context.Context, items []T, provider FlatDataProvider[T], cfg *MasterConfig[T]) ([]*Node[T], error) {
+func buildTreeFromFlatData[T any](ctx context.Context, items []T, provider FlatDataProvider[T], cfg *masterConfig[T]) ([]*Node[T], error) {
 	// Pass 1: Convert all raw items to *Node values, and cache relationship map
 
 	// parentLookup maps a node ID to the ID of its parent, so we can wire the
@@ -292,10 +291,10 @@ func buildTreeFromFlatData[T any](ctx context.Context, items []T, provider FlatD
 		if err := ctx.Err(); err != nil {
 			return nil, err // Context has ended
 		}
-		if cfg.ShouldFilter(item) {
+		if cfg.shouldFilter(item) {
 			return nil, nil // Item was filtered out
 		}
-		if cfg.HasTraversalCapBeenReached(nodeCount) {
+		if cfg.hasTraversalCapBeenReached(nodeCount) {
 			hitTraversalCap = true // We've hit the traversal cap
 			break
 		}
@@ -311,7 +310,7 @@ func buildTreeFromFlatData[T any](ctx context.Context, items []T, provider FlatD
 		parentLookup[id] = provider.ParentID(item)
 		idToNode[id] = n
 		nodeCount++
-		cfg.ReportProgress(nodeCount, n)
+		cfg.reportProgress(nodeCount, n)
 	}
 
 	// Pass 2: Establish parent/child relationships and validate tree has no cycles
@@ -322,7 +321,7 @@ func buildTreeFromFlatData[T any](ctx context.Context, items []T, provider FlatD
 			return nil, err // Context has ended
 		}
 		node := idToNode[id]
-		cfg.HandleExpansion(node)
+		cfg.handleExpansion(node)
 
 		// Gather root notes
 		if parentID == "" {
@@ -397,134 +396,87 @@ func NewTreeFromFileSystem(
 	followSymlinks bool,
 	opts ...Option[FileInfo],
 ) (*Tree[FileInfo], error) {
-	// 1. Create config with a default provider for the filesystem.
-	cfg := NewMasterConfig(opts, WithProvider[FileInfo](NewDefaultNodeProvider(
+	allOpts := append([]Option[FileInfo]{WithProvider[FileInfo](NewDefaultNodeProvider(
 		WithFileExtensionRules[FileInfo](),
-	)))
-
-	// 2. Build the node hierarchy from the filesystem.
-	nodes, err := buildFileSystemTree(ctx, path, followSymlinks, cfg)
+	))}, opts...)
+	tree, err := NewTreeFromWalker(ctx, &fileSystemWalker{
+		path:           path,
+		followSymlinks: followSymlinks,
+		visited:        make(map[string]struct{}),
+	}, allOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFileSystem, err)
+		return tree, wrapFileSystemConstructorError(err)
 	}
-
-	// 3. Create the final tree with a specialized filesystem provider.
-	tree := NewTreeFromCfg(nodes, cfg)
 	return tree, nil
 }
 
-func buildFileSystemTree(ctx context.Context, path string, followSymlinks bool, cfg *MasterConfig[FileInfo]) ([]*Node[FileInfo], error) {
-	// Resolve the path to absolute form, handling `~`, `..`, `.` expansion
-	absPath, err := utils.ResolvePath(path)
-	if err != nil {
-		return nil, pathError(ErrPathResolution, path, err)
-	}
-
-	// Track visited inodes to detect symlink loops
-	// Key is device:inode pair (Unix) or approximation (Windows)
-	visited := make(map[string]struct{})
-
-	// Get file info for the root path
-	// This handles symlinks based on config settings
-	info, err := utils.SafeStat(absPath, followSymlinks, visited)
-	if err != nil {
-		return nil, pathError(ErrFileSystem, absPath, err)
-	}
-
-	// Initialize traversal counter
-	total := 1
-	if cfg.HasTraversalCapBeenReached(total) {
-		return nil, pathError(ErrTraversalLimit, absPath, nil)
-	}
-
-	// Create the root node
-	rootNode := NewFileSystemNode(absPath, info)
-	cfg.ReportProgress(1, rootNode)
-
-	// Apply initial expansion state if configured
-	cfg.HandleExpansion(rootNode)
-
-	// If root is a directory, recursively scan its contents
-	if info.IsDir() {
-		if err := scanDir(ctx, rootNode, 0, followSymlinks, cfg, visited, &total); err != nil {
-			return nil, err
-		}
-	}
-
-	// Return single-element slice containing the root
-	return []*Node[FileInfo]{rootNode}, nil
-}
-
-// scanDir scans a directory and its subdirectories, creating Node[FileInfo] for each entry.
-// It returns an error if the traversal cap is exceeded or if there is an error.
-func scanDir(ctx context.Context, parent *Node[FileInfo], depth int, followSymlinks bool, cfg *MasterConfig[FileInfo], visited map[string]struct{}, count *int) error {
-	// Enforce depth limit if configured
-	if cfg.HasDepthLimitBeenReached(depth) {
+func wrapFileSystemConstructorError(err error) error {
+	if err == nil {
 		return nil
 	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, ErrTraversalLimit) {
+		return err
+	}
+	if errors.Is(err, ErrFileSystem) {
+		return err
+	}
+	return fmt.Errorf("%w: %w", ErrFileSystem, err)
+}
 
-	// Read all entries in the directory
-	entries, err := os.ReadDir(parent.Data().Path)
+type fileSystemWalker struct {
+	path           string
+	followSymlinks bool
+	visited        map[string]struct{}
+}
+
+func (w *fileSystemWalker) Root(context.Context) (WalkItem[FileInfo], error) {
+	absPath, err := utils.ResolvePath(w.path)
 	if err != nil {
-		return pathError(ErrDirectoryScan, parent.Data().Path, err)
+		return WalkItem[FileInfo]{}, pathError(ErrPathResolution, w.path, err)
 	}
 
-	// Collect child nodes as we process entries
-	var children []*Node[FileInfo]
+	info, err := utils.SafeStat(absPath, w.followSymlinks, w.visited)
+	if err != nil {
+		return WalkItem[FileInfo]{}, pathError(ErrFileSystem, absPath, err)
+	}
+
+	return WalkItem[FileInfo]{
+		ID:   absPath,
+		Name: info.Name(),
+		Data: FileInfo{FileInfo: info, Path: absPath},
+	}, nil
+}
+
+func (w *fileSystemWalker) Children(ctx context.Context, parent WalkItem[FileInfo]) ([]WalkItem[FileInfo], error) {
+	if !parent.Data.IsDir() {
+		return nil, nil
+	}
+
+	entries, err := os.ReadDir(parent.Data.Path)
+	if err != nil {
+		return nil, pathError(ErrDirectoryScan, parent.Data.Path, err)
+	}
+
+	children := make([]WalkItem[FileInfo], 0, len(entries))
 	for _, entry := range entries {
-		// Check for cancellation between entries
 		if err := ctx.Err(); err != nil {
-			return err
+			return nil, err
 		}
 
-		// Build full path for the child entry
-		childPath := filepath.Join(parent.Data().Path, entry.Name())
-
-		// Get file info, following symlinks if configured
-		// This also updates the visited map to detect loops
-		info, err := utils.SafeStat(childPath, followSymlinks, visited)
+		childPath := filepath.Join(parent.Data.Path, entry.Name())
+		info, err := utils.SafeStat(childPath, w.followSymlinks, w.visited)
 		if err != nil {
-			return pathError(ErrFileSystem, childPath, err)
+			return nil, pathError(ErrFileSystem, childPath, err)
 		}
 
-		// Apply filter function if provided
-		if cfg.ShouldFilter(FileInfo{
-			FileInfo: info,
-			Path:     childPath,
-		}) {
-			continue // Item was filtered out
-		}
-
-		// Create node for this entry
-		childNode := NewFileSystemNode(childPath, info)
-
-		// Apply expansion state if configured
-		cfg.HandleExpansion(childNode)
-
-		// Increment and check traversal count
-		// This prevents runaway scans of huge directories
-		*count++
-		cfg.ReportProgress(*count, childNode)
-		if cfg.HasTraversalCapBeenReached(*count) {
-			return pathError(ErrTraversalLimit, childPath, nil)
-		}
-
-		// Recursively scan subdirectories
-		if info.IsDir() {
-			if err := scanDir(ctx, childNode, depth+1, followSymlinks, cfg, visited, count); err != nil {
-				return err
-			}
-		}
-
-		// Add to children list
-		children = append(children, childNode)
+		children = append(children, WalkItem[FileInfo]{
+			ID:   childPath,
+			Name: info.Name(),
+			Data: FileInfo{FileInfo: info, Path: childPath},
+		})
 	}
 
-	// Attach all children to the parent node
-	if len(children) > 0 {
-		parent.SetChildren(children)
-	}
-	return nil
+	return children, nil
 }
 
 // filterNodes recursively filters nodes based on the provided filter function.
@@ -586,10 +538,10 @@ func limitDepth[T any](nodes []*Node[T], maxDepth int, currentDepth int) []*Node
 }
 
 // applyExpansion recursively applies the expansion function to all nodes in the tree.
-func applyExpansion[T any](nodes []*Node[T], cfg *MasterConfig[T]) {
+func applyExpansion[T any](nodes []*Node[T], cfg *masterConfig[T]) {
 	for _, node := range nodes {
 		// Apply expansion function to this node
-		cfg.HandleExpansion(node)
+		cfg.handleExpansion(node)
 
 		// Recursively apply to children
 		applyExpansion(node.Children(), cfg)
