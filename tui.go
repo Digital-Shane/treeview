@@ -233,7 +233,14 @@ func (m *TuiTreeModel[T]) handleKeypress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Add printable characters to search
+		// Add printable characters to search. Prefer msg.Text so keys whose
+		// String() returns a name (e.g. "space") still contribute the literal
+		// character typed by the user.
+		if text := msg.Key().Text; len(text) == 1 && text >= " " && text <= "~" {
+			m.searchTerm += text
+			_, _ = m.Search(m.searchTerm)
+			return m, nil
+		}
 		if len(key) == 1 && key >= " " && key <= "~" {
 			m.searchTerm += key
 			_, _ = m.Search(m.searchTerm)

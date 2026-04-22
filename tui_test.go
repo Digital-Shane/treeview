@@ -407,11 +407,11 @@ func TestUpdateViewportDimensions(t *testing.T) {
 			model.updateViewportDimensions()
 
 			if model.viewport.Width() != test.wantWidth {
-				t.Errorf("updateViewportDimensions() viewport width = %v, want %v", model.viewport.Width, test.wantWidth)
+				t.Errorf("updateViewportDimensions() viewport width = %v, want %v", model.viewport.Width(), test.wantWidth)
 			}
 
 			if model.viewport.Height() != test.wantHeight {
-				t.Errorf("updateViewportDimensions() viewport height = %v, want %v", model.viewport.Height, test.wantHeight)
+				t.Errorf("updateViewportDimensions() viewport height = %v, want %v", model.viewport.Height(), test.wantHeight)
 			}
 		})
 	}

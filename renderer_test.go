@@ -134,7 +134,7 @@ func TestRenderNode(t *testing.T) {
 					return lipgloss.NewStyle()
 				},
 			},
-			want:    "└── 📁 focused",
+			want:    "\x1b[1m└── 📁 focused\x1b[m",
 			wantErr: false,
 		},
 		{
