@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/viewport"
+	"charm.land/lipgloss/v2"
 )
 
 // benchProvider is a minimal provider to minimize noise in benchmarks.
@@ -63,7 +63,7 @@ var benchSink string // global sink to avoid compiler elimination
 
 func benchmarkRenderer(b *testing.B, fn func(context.Context, *Tree[string], *viewport.Model) (string, error), tree *Tree[string]) {
 	ctx := context.Background()
-	vp := viewport.New(100, 30)
+	vp := viewport.New(viewport.WithWidth(100), viewport.WithHeight(30))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		vpcopy := vp // copy so offsets reset

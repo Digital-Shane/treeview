@@ -7,7 +7,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/charmbracelet/bubbles/viewport"
+	"charm.land/bubbles/v2/viewport"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -197,54 +197,56 @@ func renderTree[T any](ctx context.Context, tree *Tree[T]) (string, int, error) 
 // renderTreeWithViewport combines tree rendering with viewport scrolling.
 // It automatically positions the viewport to keep the focused line visible.
 func renderTreeWithViewport[T any](ctx context.Context, tree *Tree[T], vp *viewport.Model) (string, error) {
-	// First, find the focused line position to determine if we need to adjust the viewport
-	focusedLineIndex := findFocusedLineIndex(ctx, tree)
+	// First, find the focused line position and count total visible lines
+	focusedLineIndex, totalVisibleLines := findFocusedLineIndex(ctx, tree)
+
+	// Update viewport's understanding of total content BEFORE adjusting the
+	// offset. SetYOffset clamps to maxYOffset, which depends on the current
+	// content length, so the content must be sized first for scrolling to work.
+	vp.SetContent(strings.Repeat("\n", max(0, totalVisibleLines-1)))
 
 	// Auto-scroll to keep focused line visible BEFORE rendering
-	if focusedLineIndex >= 0 && vp.Height > 0 {
+	if focusedLineIndex >= 0 && vp.Height() > 0 {
 		// If focused line is above viewport, scroll up
-		if focusedLineIndex < vp.YOffset {
-			vp.YOffset = focusedLineIndex
-		} else if focusedLineIndex >= vp.YOffset+vp.Height {
+		if focusedLineIndex < vp.YOffset() {
+			vp.SetYOffset(focusedLineIndex)
+		} else if focusedLineIndex >= vp.YOffset()+vp.Height() {
 			// If focused line is below viewport, scroll down
 			// Keep one line of context if possible
-			vp.YOffset = focusedLineIndex - vp.Height + 1
-			vp.YOffset = max(vp.YOffset, 0)
+			offset := focusedLineIndex - vp.Height() + 1
+			offset = max(offset, 0)
+			vp.SetYOffset(offset)
 		}
 	}
 
 	// Now render only the visible portion with the correct viewport offset
-	content, totalLines, err := renderViewportOnly(ctx, tree, vp)
-
-	// Update viewport's understanding of total content for scrollbar
-	// We use empty lines to set the height without the memory cost of actual content
-	vp.SetContent(strings.Repeat("\n", max(0, totalLines-1)))
+	content, _, err := renderViewportOnly(ctx, tree, vp)
 
 	// Return just the visible content
 	return content, err
 }
 
-// findFocusedLineIndex quickly scans through the tree to find the focused line's position.
-// This is a lightweight operation that doesn't render anything.
-func findFocusedLineIndex[T any](ctx context.Context, tree *Tree[T]) int {
+// findFocusedLineIndex scans the tree once, returning the focused line index
+// (or -1 if none) and the total count of visible lines.
+func findFocusedLineIndex[T any](ctx context.Context, tree *Tree[T]) (int, int) {
+	focusedIdx := -1
 	lineIdx := 0
 	for info, err := range tree.AllVisible(ctx) {
 		if err != nil {
-			return -1
+			return -1, lineIdx
 		}
-		if tree.IsFocused(info.Node.ID()) {
-			return lineIdx
+		if focusedIdx == -1 && tree.IsFocused(info.Node.ID()) {
+			focusedIdx = lineIdx
 		}
 		lineIdx++
 
-		// Check for context cancellation periodically
 		if lineIdx%100 == 0 {
 			if ctx.Err() != nil {
-				return -1
+				return focusedIdx, lineIdx
 			}
 		}
 	}
-	return -1
+	return focusedIdx, lineIdx
 }
 
 // renderViewportOnly efficiently renders only the visible lines in the viewport
@@ -258,12 +260,12 @@ func renderViewportOnly[T any](ctx context.Context, tree *Tree[T], vp *viewport.
 	}()
 
 	// Calculate the range of lines we need to render
-	startLine := vp.YOffset
-	endLine := vp.YOffset + vp.Height
+	startLine := vp.YOffset()
+	endLine := vp.YOffset() + vp.Height()
 
 	// Track state for single-pass rendering
 	currentLine := 0
-	renderBuffer := make([]string, 0, vp.Height) // Pre-allocate for viewport height
+	renderBuffer := make([]string, 0, vp.Height()) // Pre-allocate for viewport height
 
 	// ancestorIsLastChild tracks whether each ancestor (at each depth level) was the last
 	// child among its siblings. This determines whether we draw a vertical continuation

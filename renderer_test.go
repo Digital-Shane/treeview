@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/viewport"
+	"charm.land/lipgloss/v2"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -134,7 +134,7 @@ func TestRenderNode(t *testing.T) {
 					return lipgloss.NewStyle()
 				},
 			},
-			want:    "└── 📁 focused",
+			want:    "\x1b[1m└── 📁 focused\x1b[m",
 			wantErr: false,
 		},
 		{
@@ -194,7 +194,6 @@ func createTestTree() (*Node[mockData], *Node[mockData], *Node[mockData], *Node[
 }
 
 func TestRenderTree(t *testing.T) {
-
 	tests := []struct {
 		name             string
 		tree             *Tree[mockData]
@@ -352,12 +351,9 @@ func TestRenderTreeWithViewport(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
-			vp := &viewport.Model{
-				Height: test.viewportHeight,
-				Width:  test.viewportWidth,
-			}
+			vp := viewport.New(viewport.WithHeight(test.viewportHeight), viewport.WithWidth(test.viewportWidth))
 
-			got, err := renderTreeWithViewport(ctx, test.tree, vp)
+			got, err := renderTreeWithViewport(ctx, test.tree, &vp)
 
 			if (err != nil) != test.wantErr {
 				t.Errorf("renderTreeWithViewport() error = %v, wantErr %v", err, test.wantErr)

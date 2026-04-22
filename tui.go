@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	"github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 )
 
 // TuiTreeModelOption represents a functional Option that configures a TuiTreeModel instance directly.
@@ -47,6 +47,12 @@ func WithTuiKeyMap[T any](k KeyMap) TuiTreeModelOption[T] {
 // WithTuiDisableNavBar disables the built-in navigation bar at the bottom of the view.
 func WithTuiDisableNavBar[T any](disable bool) TuiTreeModelOption[T] {
 	return func(m *TuiTreeModel[T]) { m.disableNavBar = disable }
+}
+
+// WithTuiAltScreen renders the TUI in the terminal's alternate screen buffer,
+// restoring the previous terminal contents when the program exits.
+func WithTuiAltScreen[T any](enable bool) TuiTreeModelOption[T] {
+	return func(m *TuiTreeModel[T]) { m.altScreen = enable }
 }
 
 // KeyMap groups key bindings for the interactive TUI. Provide your own via
@@ -115,6 +121,7 @@ type TuiTreeModel[T any] struct {
 	searchTimeout     time.Duration
 
 	disableNavBar bool
+	altScreen     bool
 }
 
 // NewTuiTreeModel creates an interactive Bubble Tea TUI model using functional options.
@@ -134,7 +141,7 @@ type TuiTreeModel[T any] struct {
 //	)
 func NewTuiTreeModel[T any](tree *Tree[T], opts ...TuiTreeModelOption[T]) *TuiTreeModel[T] {
 	// Initialize the TUI model with default components
-	vp := viewport.New(80, 24)
+	vp := viewport.New(viewport.WithWidth(80), viewport.WithHeight(24))
 	m := &TuiTreeModel[T]{
 		Tree:   tree,
 		keyMap: DefaultKeyMap(),
@@ -233,7 +240,14 @@ func (m *TuiTreeModel[T]) handleKeypress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Add printable characters to search
+		// Add printable characters to search. Prefer msg.Text so keys whose
+		// String() returns a name (e.g. "space") still contribute the literal
+		// character typed by the user.
+		if text := msg.Key().Text; len(text) == 1 && text >= " " && text <= "~" {
+			m.searchTerm += text
+			_, _ = m.Search(m.searchTerm)
+			return m, nil
+		}
 		if len(key) == 1 && key >= " " && key <= "~" {
 			m.searchTerm += key
 			_, _ = m.Search(m.searchTerm)
@@ -382,11 +396,15 @@ func (m *TuiTreeModel[T]) Search(term string) ([]*Node[T], error) {
 }
 
 // View renders the tree plus an optional search bar and navigation legend.
-func (m *TuiTreeModel[T]) View() string {
+func (m *TuiTreeModel[T]) View() tea.View {
+	view := tea.NewView("")
+	view.AltScreen = m.altScreen
+
 	// Render the tree
 	result, err := renderTreeWithViewport(context.Background(), m.Tree, m.viewport)
 	if err != nil {
-		return "Error rendering tree: " + err.Error()
+		view.SetContent("Error rendering tree: " + err.Error())
+		return view
 	}
 
 	// Add search UI at the top if in search mode
@@ -401,7 +419,8 @@ func (m *TuiTreeModel[T]) View() string {
 		result += m.NavBar()
 	}
 
-	return result
+	view.SetContent(result)
+	return view
 }
 
 // NavBar returns the navigation bar string that shows available keyboard commands.
@@ -459,8 +478,8 @@ func (m *TuiTreeModel[T]) updateViewportDimensions() {
 		viewHeight -= 2
 	}
 
-	m.viewport.Width = m.width
-	m.viewport.Height = viewHeight
+	m.viewport.SetWidth(m.width)
+	m.viewport.SetHeight(viewHeight)
 
 	// Update tree truncation width to match viewport width
 	m.mu.Lock()

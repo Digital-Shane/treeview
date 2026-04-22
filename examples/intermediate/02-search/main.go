@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/Digital-Shane/treeview"
-	"github.com/charmbracelet/bubbletea"
 )
 
 // Product represents a product with additional searchable data
@@ -38,10 +38,11 @@ func main() {
 		tree,
 		treeview.WithTuiWidth[Product](80),
 		treeview.WithTuiHeight[Product](25),
+		treeview.WithTuiAltScreen[Product](true),
 	)
 
 	// Run the program
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)

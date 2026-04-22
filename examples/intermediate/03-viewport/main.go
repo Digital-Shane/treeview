@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/Digital-Shane/treeview"
-	"github.com/charmbracelet/bubbletea"
 )
 
 func main() {
@@ -23,6 +23,7 @@ func main() {
 		tree,
 		treeview.WithTuiWidth[*FileData](80),
 		treeview.WithTuiHeight[*FileData](20),
+		treeview.WithTuiAltScreen[*FileData](true),
 	)
 
 	// Expand root to show content immediately
@@ -32,7 +33,7 @@ func main() {
 	}
 
 	// Create the program
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 
 	// Run the program
 	if _, err := p.Run(); err != nil {
