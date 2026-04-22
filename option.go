@@ -28,77 +28,71 @@ type FocusPolicyFn[T any] func(ctx context.Context, visible []*Node[T], current 
 // single, flat list while preventing external packages from constructing their
 // own option implementations. Options are sealed to the treeview package; use
 // the exported With... helpers to construct them.
-type Option[T any] interface {
-	apply(*masterConfig[T])
-}
-
-type optionFunc[T any] func(*masterConfig[T])
-
-func (fn optionFunc[T]) apply(cfg *masterConfig[T]) {
-	fn(cfg)
+type Option[T any] struct {
+	apply func(*masterConfig[T])
 }
 
 // WithProvider specifies the NodeProvider to use for rendering nodes.
 // The provider controls how nodes are formatted, styled, and displayed.
 func WithProvider[T any](p NodeProvider[T]) Option[T] {
-	return optionFunc[T](func(cfg *masterConfig[T]) {
+	return Option[T]{apply: func(cfg *masterConfig[T]) {
 		cfg.provider = p
-	})
+	}}
 }
 
 // WithSearcher overwrites the algorithm used when the search feature is invoked.
 func WithSearcher[T any](fn SearchFn[T]) Option[T] {
-	return optionFunc[T](func(cfg *masterConfig[T]) {
+	return Option[T]{apply: func(cfg *masterConfig[T]) {
 		cfg.searcher = fn
-	})
+	}}
 }
 
 // WithFocusPolicy replaces the logic that decides which node should be focused
 // after search or navigation.
 func WithFocusPolicy[T any](fn FocusPolicyFn[T]) Option[T] {
-	return optionFunc[T](func(cfg *masterConfig[T]) {
+	return Option[T]{apply: func(cfg *masterConfig[T]) {
 		cfg.focusPol = fn
-	})
+	}}
 }
 
 // WithExpandFunc installs a predicate that decides for each node whether it
 // should start expanded.
 func WithExpandFunc[T any](fn ExpandFn[T]) Option[T] {
-	return optionFunc[T](func(cfg *masterConfig[T]) {
+	return Option[T]{apply: func(cfg *masterConfig[T]) {
 		cfg.expandFunc = fn
-	})
+	}}
 }
 
 // WithExpandAll expands all nodes by default.
 func WithExpandAll[T any]() Option[T] {
-	return optionFunc[T](func(cfg *masterConfig[T]) {
+	return Option[T]{apply: func(cfg *masterConfig[T]) {
 		cfg.expandFunc = func(*Node[T]) bool { return true }
-	})
+	}}
 }
 
 // WithFilterFunc installs a predicate that decides for each node whether it
 // should be included in the tree.
 func WithFilterFunc[T any](filter FilterFn[T]) Option[T] {
-	return optionFunc[T](func(cfg *masterConfig[T]) {
+	return Option[T]{apply: func(cfg *masterConfig[T]) {
 		cfg.filterFunc = filter
-	})
+	}}
 }
 
 // WithMaxDepth limits how deep the constructors descend.
 // A depth of 0 keeps only root nodes, 1 includes roots plus their children, and
 // a negative depth means no limit (default).
 func WithMaxDepth[T any](d int) Option[T] {
-	return optionFunc[T](func(c *masterConfig[T]) {
+	return Option[T]{apply: func(c *masterConfig[T]) {
 		c.maxDepth = d
-	})
+	}}
 }
 
 // WithTraversalCap sets an upper bound on the total number of nodes created
 // during tree construction. A value ≤ 0 is interpreted as no limit.
 func WithTraversalCap[T any](cap int) Option[T] {
-	return optionFunc[T](func(c *masterConfig[T]) {
+	return Option[T]{apply: func(c *masterConfig[T]) {
 		c.traversalCap = cap
-	})
+	}}
 }
 
 // WithProgressCallback registers a callback that is invoked each time a new
@@ -106,18 +100,18 @@ func WithTraversalCap[T any](cap int) Option[T] {
 // invoked by NewTree (which accepts pre-built nodes) except once per root
 // node supplied so callers have a consistent hook.
 func WithProgressCallback[T any](cb ProgressCallback[T]) Option[T] {
-	return optionFunc[T](func(c *masterConfig[T]) {
+	return Option[T]{apply: func(c *masterConfig[T]) {
 		c.progressCb = cb
-	})
+	}}
 }
 
 // WithTruncate sets the maximum width for rendered lines. Lines longer than
 // this width will be truncated with an ellipsis. A width of 0 disables
 // truncation (default).
 func WithTruncate[T any](width int) Option[T] {
-	return optionFunc[T](func(c *masterConfig[T]) {
+	return Option[T]{apply: func(c *masterConfig[T]) {
 		c.truncateWidth = width
-	})
+	}}
 }
 
 // masterConfig aggregates options from different domains (build, filesystem,
@@ -153,14 +147,14 @@ func newMasterConfig[T any](opts []Option[T], defaults ...Option[T]) *masterConf
 
 	// Apply provided defaults first
 	for _, opt := range defaults {
-		if opt != nil {
+		if opt.apply != nil {
 			opt.apply(cfg)
 		}
 	}
 
 	// Apply user-provided options.
 	for _, opt := range opts {
-		if opt != nil {
+		if opt.apply != nil {
 			opt.apply(cfg)
 		}
 	}
