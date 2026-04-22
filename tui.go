@@ -49,6 +49,12 @@ func WithTuiDisableNavBar[T any](disable bool) TuiTreeModelOption[T] {
 	return func(m *TuiTreeModel[T]) { m.disableNavBar = disable }
 }
 
+// WithTuiAltScreen renders the TUI in the terminal's alternate screen buffer,
+// restoring the previous terminal contents when the program exits.
+func WithTuiAltScreen[T any](enable bool) TuiTreeModelOption[T] {
+	return func(m *TuiTreeModel[T]) { m.altScreen = enable }
+}
+
 // KeyMap groups key bindings for the interactive TUI. Provide your own via
 // WithTuiKeyMap if you need to accommodate non-US layouts or match existing shortcuts.
 type KeyMap struct {
@@ -115,6 +121,7 @@ type TuiTreeModel[T any] struct {
 	searchTimeout     time.Duration
 
 	disableNavBar bool
+	altScreen     bool
 }
 
 // NewTuiTreeModel creates an interactive Bubble Tea TUI model using functional options.
@@ -390,10 +397,14 @@ func (m *TuiTreeModel[T]) Search(term string) ([]*Node[T], error) {
 
 // View renders the tree plus an optional search bar and navigation legend.
 func (m *TuiTreeModel[T]) View() tea.View {
+	view := tea.NewView("")
+	view.AltScreen = m.altScreen
+
 	// Render the tree
 	result, err := renderTreeWithViewport(context.Background(), m.Tree, m.viewport)
 	if err != nil {
-		return tea.NewView("Error rendering tree: " + err.Error())
+		view.SetContent("Error rendering tree: " + err.Error())
+		return view
 	}
 
 	// Add search UI at the top if in search mode
@@ -408,7 +419,8 @@ func (m *TuiTreeModel[T]) View() tea.View {
 		result += m.NavBar()
 	}
 
-	return tea.NewView(result)
+	view.SetContent(result)
+	return view
 }
 
 // NavBar returns the navigation bar string that shows available keyboard commands.

@@ -23,6 +23,7 @@ func main() {
 		tree,
 		treeview.WithTuiWidth[*FileData](80),
 		treeview.WithTuiHeight[*FileData](20),
+		treeview.WithTuiAltScreen[*FileData](true),
 	)
 
 	// Expand root to show content immediately

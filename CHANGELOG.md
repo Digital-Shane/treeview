@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - golangci version to be go 1.25 compatible.
 ### Added
 - Golang CI lint config and workflow.
+- `WithTuiAltScreen` option to restore old alt screen behavior.
 ### Fixed
 - Fix viewport autoscroll silently clamping to top because content length was set after the scroll offset.
 

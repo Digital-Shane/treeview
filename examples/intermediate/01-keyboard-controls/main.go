@@ -23,6 +23,7 @@ func main() {
 		tree,
 		treeview.WithTuiWidth[string](80),
 		treeview.WithTuiHeight[string](25),
+		treeview.WithTuiAltScreen[string](true),
 	)
 
 	// Create the program with navigation help bar

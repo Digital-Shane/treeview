@@ -38,6 +38,7 @@ func main() {
 		tree,
 		treeview.WithTuiWidth[Product](80),
 		treeview.WithTuiHeight[Product](25),
+		treeview.WithTuiAltScreen[Product](true),
 	)
 
 	// Run the program
