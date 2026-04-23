@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ## [v2.0.0] - 2026-04-22
+
+See the [v2 update guide](./v2_updates.md) for upgrade notes and migration advice.
+
 ### Updated
 - Updated charm ecosystem libraries to v2. (darkhz)
 - golangci version to be go 1.25 compatible.
