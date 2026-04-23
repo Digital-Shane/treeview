@@ -8,12 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ## [v2.0.0] - 2026-04-22
+
+See the [v2 update guide](./v2_updates.md) for upgrade notes and migration advice.
+
 ### Updated
 - Updated charm ecosystem libraries to v2. (darkhz)
 - golangci version to be go 1.25 compatible.
+- Reworked extension support around `NewTreeFromWalker` and returned root config internals to private scope.
+- Updated `Option` to keep extension support without exposing internal config types.
 ### Added
 - Golang CI lint config and workflow.
 - `WithTuiAltScreen` option to restore old alt screen behavior.
+- `Walker`, `WalkItem`, and `NewTreeFromWalker` for extension-backed tree construction.
 ### Fixed
 - Fix viewport autoscroll silently clamping to top because content length was set after the scroll offset.
 

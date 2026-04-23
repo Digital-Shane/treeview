@@ -3,6 +3,9 @@
 **TreeView** is a feature-rich Go library for displaying and navigating tree structures in the terminal.
 TreeView has full [Bubble Tea][bt] and [Lipgloss][lg] support, allowing you to build glamorous, interactive terminal applications.
 
+If you're upgrading from v1, the [v2 update guide](./v2_updates.md) walks
+through the important changes and what to watch for.
+
 ## Why TreeView?
 
 What sets TreeView apart is its flexibility. You can build trees from any data source: flat lists with parent relationships, 

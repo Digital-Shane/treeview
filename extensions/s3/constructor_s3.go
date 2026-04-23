@@ -3,18 +3,12 @@ package s3
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"sync"
-	"sync/atomic"
 
 	"github.com/Digital-Shane/treeview"
-	"github.com/Digital-Shane/treeview/extensions/s3/internal/s3"
+	internals3 "github.com/Digital-Shane/treeview/extensions/s3/internal/s3"
 )
-
-type safeThreadNode struct {
-	*treeview.Node[treeview.FileInfo]
-	sync.RWMutex
-}
 
 // NewTreeFromS3 creates a new tree structure based on files fetched from an S3 path, using configurable options.
 // Returns a pointer to a Tree structure or an error if an issue occurs during tree creation.
@@ -25,92 +19,82 @@ type safeThreadNode struct {
 //   - treeview.WithMaxDepth:     Limits tree depth during construction
 //   - treeview.WithExpandFunc:   Sets initial expansion state for nodes
 //   - treeview.WithTraversalCap: Limits total nodes processed (returns a partial tree + error if exceeded)
-//   - treeview.WithProgressCallback: Invoked after each filesystem entry is processed (breadth-first per directory)
+//   - treeview.WithProgressCallback: Invoked after each node is created during traversal
 func NewTreeFromS3(ctx context.Context, path string, profile string,
 	opts ...treeview.Option[treeview.FileInfo]) (*treeview.Tree[treeview.FileInfo], error) {
-	cfg := treeview.NewMasterConfig(opts, treeview.WithProvider[treeview.FileInfo](treeview.NewDefaultNodeProvider(
+	allOpts := append([]treeview.Option[treeview.FileInfo]{treeview.WithProvider[treeview.FileInfo](treeview.NewDefaultNodeProvider(
 		treeview.WithFileExtensionRules[treeview.FileInfo](),
-	)))
-	nodes, err := buildFileSystemTreeForS3(ctx, path, profile, cfg)
+	))}, opts...)
+
+	tree, err := treeview.NewTreeFromWalker(ctx, &walker{path: path, profile: profile}, allOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", treeview.ErrFileSystem, err)
+		return tree, wrapConstructorError(err)
 	}
-	tree := treeview.NewTreeFromCfg(nodes, cfg)
+
 	return tree, nil
 }
 
-func buildFileSystemTreeForS3(ctx context.Context, path string, profile string,
-	cfg *treeview.MasterConfig[treeview.FileInfo]) ([]*treeview.Node[treeview.FileInfo], error) {
-	info, err := s3.Info(ctx, path, s3.WithProfile(profile))
-	if err != nil {
-		return nil, pathError(treeview.ErrPathResolution, path, err)
-	}
-	total := int64(1)
-
-	rootNode := safeThreadNode{Node: treeview.NewFileSystemNode(path, info), RWMutex: sync.RWMutex{}}
-	cfg.HandleExpansion(rootNode.Node)
-	if info.IsDir() {
-		if err := scanDirS3(ctx, &rootNode, 0, cfg, &total); err != nil {
-			return nil, err
-		}
-	}
-	return []*treeview.Node[treeview.FileInfo]{rootNode.Node}, nil
-}
-
-// scanDirS3 scans a bucket or key and its subdirectories, creating Node[treeview.FileInfo] for each entry.
-// It returns an error if the traversal cap is exceeded or if there is an error.
-func scanDirS3(ctx context.Context, parent *safeThreadNode, depth int, cfg *treeview.MasterConfig[treeview.FileInfo],
-	count *int64) error {
-	if cfg.HasDepthLimitBeenReached(depth) {
+func wrapConstructorError(err error) error {
+	if err == nil {
 		return nil
 	}
-	parent.RLock()
-	p := parent.Data().Path
-	parent.RUnlock()
-	entries, err := s3.ReadDir(ctx, p)
-	if err != nil {
-		return pathError(treeview.ErrDirectoryScan, p, err)
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, treeview.ErrTraversalLimit) {
+		return err
 	}
-	children := make([]*treeview.Node[treeview.FileInfo], 0, len(entries)) // preallocation of the capacity only.
+	if errors.Is(err, treeview.ErrFileSystem) {
+		return err
+	}
+	return fmt.Errorf("%w: %w", treeview.ErrFileSystem, err)
+}
+
+type walker struct {
+	path    string
+	profile string
+}
+
+func (w *walker) Root(ctx context.Context) (treeview.WalkItem[treeview.FileInfo], error) {
+	info, err := internals3.Info(ctx, w.path, internals3.WithProfile(w.profile))
+	if err != nil {
+		return treeview.WalkItem[treeview.FileInfo]{}, pathError(treeview.ErrPathResolution, w.path, err)
+	}
+
+	return treeview.WalkItem[treeview.FileInfo]{
+		ID:   w.path,
+		Name: info.Name(),
+		Data: treeview.FileInfo{FileInfo: info, Path: w.path},
+	}, nil
+}
+
+func (w *walker) Children(ctx context.Context, parent treeview.WalkItem[treeview.FileInfo]) ([]treeview.WalkItem[treeview.FileInfo], error) {
+	if !parent.Data.IsDir() {
+		return nil, nil
+	}
+
+	entries, err := internals3.ReadDir(ctx, parent.Data.Path)
+	if err != nil {
+		return nil, pathError(treeview.ErrDirectoryScan, parent.Data.Path, err)
+	}
+
+	children := make([]treeview.WalkItem[treeview.FileInfo], 0, len(entries))
 	for _, entry := range entries {
-		// Check for cancellation between entries
 		if err := ctx.Err(); err != nil {
-			return err
+			return nil, err
 		}
-		childPath := s3.Join(p, entry.Name()) // entry.Name is the full key.
+
+		childPath := internals3.Join(parent.Data.Path, entry.Name())
 		info, err := entry.Info()
 		if err != nil {
-			return pathError(treeview.ErrFileSystem, childPath, err)
+			return nil, pathError(treeview.ErrFileSystem, childPath, err)
 		}
-		if cfg.ShouldFilter(treeview.FileInfo{
-			FileInfo: info,
-			Path:     childPath,
-		}) {
-			continue // Item was filtered out
-		}
-		childNode := safeThreadNode{Node: treeview.NewFileSystemNode(childPath, info), RWMutex: sync.RWMutex{}}
-		cfg.HandleExpansion(childNode.Node)
-		atomic.AddInt64(count, 1)
-		val := int(atomic.LoadInt64(count))
-		cfg.ReportProgress(val, childNode.Node)
-		if cfg.HasTraversalCapBeenReached(val) {
-			return pathError(treeview.ErrTraversalLimit, childPath, nil)
-		}
-		if info.IsDir() {
-			if err := scanDirS3(ctx, &childNode, depth+1, cfg, count); err != nil {
-				return err
-			}
-		}
-		childNode.RLock()
-		children = append(children, childNode.Node)
-		childNode.RUnlock()
+
+		children = append(children, treeview.WalkItem[treeview.FileInfo]{
+			ID:   childPath,
+			Name: info.Name(),
+			Data: treeview.FileInfo{FileInfo: info, Path: childPath},
+		})
 	}
-	if len(children) > 0 {
-		parent.Lock()
-		parent.SetChildren(children)
-		parent.Unlock()
-	}
-	return nil
+
+	return children, nil
 }
 
 // pathError creates an error that includes path context.
