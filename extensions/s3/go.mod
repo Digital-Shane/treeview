@@ -1,11 +1,11 @@
-module github.com/Digital-Shane/treeview/extensions/s3
+module github.com/Digital-Shane/treeview/extensions/s3/v2
 
 go 1.25.0
 
-replace github.com/Digital-Shane/treeview => ../..
+replace github.com/Digital-Shane/treeview/v2 => ../..
 
 require (
-	github.com/Digital-Shane/treeview v1.8.2
+	github.com/Digital-Shane/treeview/v2 v2.0.0
 	github.com/aws/aws-sdk-go-v2 v1.38.3
 	github.com/aws/aws-sdk-go-v2/config v1.31.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.87.1

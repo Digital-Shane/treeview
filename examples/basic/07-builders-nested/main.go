@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Digital-Shane/treeview"
-	"github.com/Digital-Shane/treeview/examples/shared"
 	"charm.land/lipgloss/v2"
+	"github.com/Digital-Shane/treeview/v2"
+	"github.com/Digital-Shane/treeview/v2/examples/shared"
 )
 
 // ==========================================================================

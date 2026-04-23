@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Digital-Shane/treeview/extensions/s3/internal/config"
-	"github.com/Digital-Shane/treeview/extensions/s3/internal/localstack/exec"
+	"github.com/Digital-Shane/treeview/extensions/s3/v2/internal/config"
+	"github.com/Digital-Shane/treeview/extensions/s3/v2/internal/localstack/exec"
 )
 
 const (

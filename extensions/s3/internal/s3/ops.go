@@ -15,8 +15,8 @@ import (
 	"github.com/failsafe-go/failsafe-go/retrypolicy"
 	"github.com/pkg/errors"
 
-	config2 "github.com/Digital-Shane/treeview/extensions/s3/internal/config"
-	"github.com/Digital-Shane/treeview/extensions/s3/internal/localstack"
+	config2 "github.com/Digital-Shane/treeview/extensions/s3/v2/internal/config"
+	"github.com/Digital-Shane/treeview/extensions/s3/v2/internal/localstack"
 )
 
 var (

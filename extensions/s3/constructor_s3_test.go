@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Digital-Shane/treeview"
-	"github.com/Digital-Shane/treeview/extensions/s3/internal/s3"
+	"github.com/Digital-Shane/treeview/extensions/s3/v2/internal/s3"
+	"github.com/Digital-Shane/treeview/v2"
 )
 
 func TestNewTreeFromS3(t *testing.T) {

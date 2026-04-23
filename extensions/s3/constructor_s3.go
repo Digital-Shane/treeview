@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Digital-Shane/treeview"
-	internals3 "github.com/Digital-Shane/treeview/extensions/s3/internal/s3"
+	internals3 "github.com/Digital-Shane/treeview/extensions/s3/v2/internal/s3"
+	"github.com/Digital-Shane/treeview/v2"
 )
 
 // NewTreeFromS3 creates a new tree structure based on files fetched from an S3 path, using configurable options.

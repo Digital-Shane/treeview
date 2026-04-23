@@ -1,4 +1,4 @@
-module github.com/Digital-Shane/treeview
+module github.com/Digital-Shane/treeview/v2
 
 go 1.25.0
 

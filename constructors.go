@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Digital-Shane/treeview/internal/utils"
+	"github.com/Digital-Shane/treeview/v2/internal/utils"
 )
 
 // NewTree creates a new Tree from an existing slice of nodes.

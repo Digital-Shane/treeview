@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Digital-Shane/treeview/extensions/s3/internal/localstack"
+	"github.com/Digital-Shane/treeview/extensions/s3/v2/internal/localstack"
 )
 
 const (

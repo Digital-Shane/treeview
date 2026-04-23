@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Digital-Shane/treeview"
+	"github.com/Digital-Shane/treeview/v2"
 )
 
 type fixtureWalker struct {

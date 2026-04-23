@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Digital-Shane/treeview"
+	"github.com/Digital-Shane/treeview/v2"
 )
 
 var noDelay = flag.Bool("no-delay", false, "Disable delay between examples")

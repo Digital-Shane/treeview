@@ -18,7 +18,13 @@ TreeView now uses the Charm v2 packages. If your project imports Bubble Tea,
 Bubbles, or Lip Gloss directly alongside TreeView, you should update those
 imports and versions at the same time so everything is on the same stack.
 
+This release also switches to the proper Go semantic import versioning path, so
+the module is now imported as `github.com/Digital-Shane/treeview/v2`. If you
+use the S3 extension module, that import path also picks up the version suffix
+and becomes `github.com/Digital-Shane/treeview/extensions/s3/v2`.
+
 ```go
+import "github.com/Digital-Shane/treeview/v2"
 import tea "charm.land/bubbletea/v2"
 import "charm.land/bubbles/v2/viewport"
 import "charm.land/lipgloss/v2"

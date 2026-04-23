@@ -16,6 +16,7 @@ See the [v2 update guide](./v2_updates.md) for upgrade notes and migration advic
 - golangci version to be go 1.25 compatible.
 - Reworked extension support around `NewTreeFromWalker` and returned root config internals to private scope.
 - Updated `Option` to keep extension support without exposing internal config types.
+- Import path to include `/v2`.
 ### Added
 - Golang CI lint config and workflow.
 - `WithTuiAltScreen` option to restore old alt screen behavior.
