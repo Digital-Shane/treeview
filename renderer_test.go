@@ -102,6 +102,70 @@ func TestBuildPrefix(t *testing.T) {
 	}
 }
 
+func TestTruncateLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		maxWidth int
+		want     string
+	}{
+		{
+			name:     "unstyled",
+			line:     "abcdef",
+			maxWidth: 5,
+			want:     "ab...",
+		},
+		{
+			name:     "styled_lipgloss_reset",
+			line:     "\x1b[1mabcdefg\x1b[m",
+			maxWidth: 6,
+			want:     "\x1b[1mabc...\x1b[0m",
+		},
+		{
+			name:     "styled_full_reset",
+			line:     "\x1b[31mabcdefg\x1b[0m",
+			maxWidth: 6,
+			want:     "\x1b[31mabc...\x1b[0m",
+		},
+		{
+			name:     "narrow_styled_line",
+			line:     "\x1b[1mabcdef\x1b[m",
+			maxWidth: 3,
+			want:     "...",
+		},
+		{
+			name:     "non_style_ansi_sequence",
+			line:     "\x1b[2Kabcdef",
+			maxWidth: 5,
+			want:     "\x1b[2Kab...",
+		},
+		{
+			name:     "style_reset_before_truncation",
+			line:     "\x1b[1mabc\x1b[mdefg",
+			maxWidth: 6,
+			want:     "\x1b[1mabc\x1b[m...",
+		},
+		{
+			name:     "styled_line_that_already_fits",
+			line:     "\x1b[1mabc\x1b[m",
+			maxWidth: 3,
+			want:     "\x1b[1mabc\x1b[m",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := truncateLine(test.line, test.maxWidth)
+			if got != test.want {
+				t.Errorf("truncateLine(%q, %d) = %q, want %q", test.line, test.maxWidth, got, test.want)
+			}
+			if gotWidth := visualWidth(got); gotWidth > test.maxWidth {
+				t.Errorf("truncateLine(%q, %d) visual width = %d, want <= %d", test.line, test.maxWidth, gotWidth, test.maxWidth)
+			}
+		})
+	}
+}
+
 func TestRenderNode(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -173,6 +237,30 @@ func TestRenderNode(t *testing.T) {
 				t.Errorf("renderNode() = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestRenderNodeClosesTruncatedFocusedANSIStyle(t *testing.T) {
+	node := NewNode("focused", "focused", mockData{name: "focused"})
+	provider := &mockProvider{
+		iconFunc:   func(n *Node[mockData]) string { return "" },
+		formatFunc: func(n *Node[mockData]) string { return "abcdefg" },
+		styleFunc: func(n *Node[mockData], focused bool) lipgloss.Style {
+			if focused {
+				return lipgloss.NewStyle().Bold(true)
+			}
+			return lipgloss.NewStyle()
+		},
+	}
+
+	got, err := renderNode(provider, node, "", true, 6)
+	if err != nil {
+		t.Fatalf("renderNode() error = %v", err)
+	}
+
+	want := "\x1b[1mabc...\x1b[0m"
+	if got != want {
+		t.Fatalf("renderNode() = %q, want %q", got, want)
 	}
 }
 

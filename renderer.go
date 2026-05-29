@@ -16,6 +16,9 @@ var sbPool = sync.Pool{New: func() any { return new(strings.Builder) }}
 // ansiRegex matches ANSI escape sequences
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
+// ansiReset ends terminal line styling to prevent overlap
+const ansiReset = "\x1b[0m"
+
 // stripANSI removes ANSI escape sequences from a string
 func stripANSI(s string) string {
 	return ansiRegex.ReplaceAllString(s, "")
@@ -39,6 +42,8 @@ func truncateLine(line string, maxWidth int) string {
 		return line
 	}
 
+	ansiParts := ansiRegex.FindAllStringIndex(line, -1)
+
 	// We need to truncate. Reserve 3 characters for ellipsis
 	if maxWidth <= 3 {
 		return "..."
@@ -46,14 +51,12 @@ func truncateLine(line string, maxWidth int) string {
 
 	targetWidth := maxWidth - 3
 
-	// Find ANSI sequences to preserve styling (work with byte indices)
-	ansiParts := ansiRegex.FindAllStringIndex(line, -1)
-
 	// Build the truncated string byte by byte
 	var result strings.Builder
 	currentWidth := 0
 	bytes := []byte(line)
 	ansiIdx := 0
+	styleOpen := false
 	i := 0
 
 	for i < len(bytes) {
@@ -61,7 +64,9 @@ func truncateLine(line string, maxWidth int) string {
 		if ansiIdx < len(ansiParts) && i == ansiParts[ansiIdx][0] {
 			// Add the ANSI sequence (doesn't affect width)
 			end := ansiParts[ansiIdx][1]
-			result.Write(bytes[i:end])
+			sequence := string(bytes[i:end])
+			styleOpen = updateStyleOpen(styleOpen, sequence)
+			result.WriteString(sequence)
 			i = end
 			ansiIdx++
 			continue
@@ -84,12 +89,30 @@ func truncateLine(line string, maxWidth int) string {
 	// Add ellipsis
 	result.WriteString("...")
 
-	// Add any remaining ANSI reset codes if they exist at the end of the original string
-	if strings.HasSuffix(line, "\x1b[0m") {
-		result.WriteString("\x1b[0m")
+	return closeTruncatedANSI(result.String(), styleOpen)
+}
+
+func closeTruncatedANSI(line string, styleOpen bool) string {
+	if !styleOpen || hasANSIResetSuffix(line) {
+		return line
+	}
+	return line + ansiReset
+}
+
+func updateStyleOpen(styleOpen bool, sequence string) bool {
+	if !strings.HasSuffix(sequence, "m") {
+		return styleOpen
 	}
 
-	return result.String()
+	params := strings.TrimSuffix(strings.TrimPrefix(sequence, "\x1b["), "m")
+	if params == "" || params == "0" {
+		return false
+	}
+	return true
+}
+
+func hasANSIResetSuffix(line string) bool {
+	return strings.HasSuffix(line, ansiReset) || strings.HasSuffix(line, "\x1b[m")
 }
 
 // renderNode implements the NodeRenderer interface. It asks the NodeProvider
