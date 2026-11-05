@@ -27,7 +27,11 @@ func (oi *ObjectInfo) Type() fs.FileMode {
 // Info returns the ObjectInfo of the object at `path`.  If it is a directory, then IsDir() is true and Size() and
 // ModTime() is meaningless.
 func Info(ctx context.Context, path string, opts ...Option) (*ObjectInfo, error) {
-	if !HasAccess(ctx, path, opts...) {
+	ok, err := HasAccess(ctx, path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		return nil, ErrNoAccess
 	}
 	b, p := Parse(path)

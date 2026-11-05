@@ -25,8 +25,6 @@ const (
 )
 
 var (
-	// ErrMajorFailure is returned when an unexpected serious error occurred.  Contact the development team.
-	ErrMajorFailure = errors.New("major failure")
 	// ErrNoAccess is returned when the access to the object or bucket is not available.
 	ErrNoAccess = errors.New("no access")
 )
@@ -45,7 +43,7 @@ type getObjecter interface {
 // HasAccess returns true if the object or prefix at `path` can be accessed even if it does not yet exist.
 //
 // It supports the option WithProfile, and WithRetry.
-func HasAccess(ctx context.Context, path string, opts ...Option) bool {
+func HasAccess(ctx context.Context, path string, opts ...Option) (bool, error) {
 	if !IsWithRetry(opts...) {
 		return hasAccess(ctx, path, opts...)
 	}
@@ -143,19 +141,19 @@ func getHeadObject(ctx context.Context, path string, opts ...Option) (*awsS3.Hea
 // hasAccess returns true if the object or prefix at `path` can be accessed even if it does not yet exist.
 //
 // It supports the option WithProfile.
-func hasAccess(ctx context.Context, path string, opts ...Option) bool {
+func hasAccess(ctx context.Context, path string, opts ...Option) (bool, error) {
 	b, o := Parse(path)
 	c, err := NewClientForBucket(ctx, b, opts...)
 	if err != nil {
-		return false
+		return false, err
 	}
-	_, err = c.HeadBucket(context.Background(), &awsS3.HeadBucketInput{Bucket: aws.String(b)})
+	_, err = c.HeadBucket(ctx, &awsS3.HeadBucketInput{Bucket: aws.String(b)})
 	if err == nil {
-		return true
+		return true, nil
 	}
 	o = strings.TrimSuffix(o, "/")
 	if o == "" {
-		return false
+		return false, nil
 	}
 	oo := strings.Split(o, "/")
 	i := len(oo)
@@ -165,14 +163,14 @@ func hasAccess(ctx context.Context, path string, opts ...Option) bool {
 			Key: aws.String(key),
 		})
 		if err == nil {
-			return true
+			return true, nil
 		}
 		i--
 		if i == 0 {
 			break
 		}
 	}
-	return false
+	return false, nil
 }
 
 // newClient creates a new client of the default configuration initialized by the package with the options `opts`.
@@ -241,13 +239,13 @@ func getRetryPolicy(opts ...Option) retrypolicy.RetryPolicy[any] {
 	return retryPolicy
 }
 
-func hasAccessWithRetry(ctx context.Context, path string, opts ...Option) bool {
+func hasAccessWithRetry(ctx context.Context, path string, opts ...Option) (bool, error) {
 	return failsafe.With(getRetryPolicy(opts...)).Run(func() error {
-		if hasAccess(ctx, path, opts...) {
+		if ok, _ := hasAccess(ctx, path, opts...); ok {
 			return nil
 		}
 		return errFailedFailSafe
-	}) == nil
+	}) == nil, nil
 }
 
 func isRetryableError(_ any, err error) bool {

@@ -40,17 +40,17 @@ func Test_Size(t *testing.T) {
 }
 
 func TestHasAccess(t *testing.T) {
-	if HasAccess(context.Background(), _cS3) == false {
+	if ok, _ := HasAccess(context.Background(), _cS3); ok == false {
 		t.Fatal("expected true")
 	}
-	if HasAccess(context.Background(), Join(_cS3, randomID()),
-		WithRetry(3, 500*time.Millisecond)) == false {
+	if ok, _ := HasAccess(context.Background(), Join(_cS3, randomID()),
+		WithRetry(3, 500*time.Millisecond)); ok == false {
 		t.Fatal("expected true")
 	}
-	if HasAccess(context.Background(), "s3://bad") == true {
+	if ok, _ := HasAccess(context.Background(), "s3://bad"); ok == true {
 		t.Fatal("expected false")
 	}
-	if HasAccess(context.Background(), "s3://bad/bad", WithRetry(3, 500*time.Millisecond)) == true {
+	if ok, _ := HasAccess(context.Background(), "s3://bad/bad", WithRetry(3, 500*time.Millisecond)); ok == true {
 		t.Fatal("expected false")
 	}
 }
@@ -62,7 +62,7 @@ func randomID() string {
 	var buffer []byte
 	choice := []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890")
 	choiceSize := len(choice)
-	for i := 0; i < size; i++ {
+	for range size {
 		// generates the characters
 		s := rand.IntN(choiceSize) // #nosec G404 do not need true randomness.
 		buffer = append(buffer, choice[s])
