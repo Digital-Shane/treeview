@@ -19,17 +19,20 @@ import (
 	"github.com/Digital-Shane/treeview/extensions/s3/v2/internal/localstack"
 )
 
+const (
+	// URI is the prefix expected for S3 objects and buckets.
+	URI = "s3://"
+)
+
 var (
-	// ErrMajorFailure is returned when an unexpected serious error occurred.  Contact the development team.
-	ErrMajorFailure = errors.New("major failure")
 	// ErrNoAccess is returned when the access to the object or bucket is not available.
 	ErrNoAccess = errors.New("no access")
 )
 
 // GetClient returns a client for the bucket of `path`.  It handles the option WithProfile.
-func GetClient(path string, opts ...Option) (*awsS3.Client, error) {
+func GetClient(ctx context.Context, path string, opts ...Option) (*awsS3.Client, error) {
 	b, _ := Parse(path)
-	return newClientForBucket(b, opts...)
+	return NewClientForBucket(ctx, b, opts...)
 }
 
 type getObjecter interface {
@@ -37,10 +40,10 @@ type getObjecter interface {
 		optFns ...func(*awsS3.Options)) (*awsS3.GetObjectOutput, error)
 }
 
-// HasAccess returns true if the object or prefix at`path`can be accessed even if it does not yet exist.
+// HasAccess returns true if the object or prefix at `path` can be accessed even if it does not yet exist.
 //
 // It supports the option WithProfile, and WithRetry.
-func HasAccess(ctx context.Context, path string, opts ...Option) bool {
+func HasAccess(ctx context.Context, path string, opts ...Option) (bool, error) {
 	if !IsWithRetry(opts...) {
 		return hasAccess(ctx, path, opts...)
 	}
@@ -55,8 +58,22 @@ func Join(elems ...string) string {
 		return ""
 	}
 	s := path.Join(elems...)
-	s = strings.TrimPrefix(strings.TrimPrefix(s, _cS3URI), "s3:/")
-	return _cS3URI + s
+	s = strings.TrimPrefix(strings.TrimPrefix(s, URI), "s3:/")
+	return URI + s
+}
+
+// Parse returns the bucket name and the key of `path`
+func Parse(path string) (string, string) {
+	const (
+		cNumEle = 2
+	)
+	path = strings.TrimPrefix(path, URI)
+	p := strings.SplitAfterN(path, "/", cNumEle)
+	p[0] = strings.TrimSuffix(p[0], "/")
+	if len(p) == 1 {
+		return p[0], ""
+	}
+	return p[0], p[1]
 }
 
 // Size returns the size of the object located at `path`.
@@ -77,13 +94,17 @@ var errFailedFailSafe = errors.New("failed ")
 
 // bucketFinder generates a new client for the bucket `b` and returns its region. It gracefully handles
 // the use of local stack. It supports WithProfile.
-func bucketFinder(b string, opts ...Option) (string, error) {
+func bucketFinder(ctx context.Context, b string, opts ...Option) (string, error) {
 	// emulates curl -sI foo.s3.amazonaws.com | awk '/^x-amz-b	-region:/ { print $2 }'
 	region := localstack.DefaultRegion
 	if !localstack.InUse() {
 		var client http.Client
 		address := fmt.Sprintf("http://%s.s3.amazonaws.com", b)
-		resp, err := client.Head(address)
+		req, err := http.NewRequestWithContext(ctx, http.MethodHead, address, nil)
+		if err != nil {
+			return "", err
+		}
+		resp, err := client.Do(req)
 		if err != nil {
 			return "", err
 		}
@@ -96,7 +117,7 @@ func bucketFinder(b string, opts ...Option) (string, error) {
 	}
 	oo := []config.LoadOptionsFunc{config.WithRegion(region)}
 	oo = append(oo, collectCfg(opts...)...)
-	_, err := newClient(oo...)
+	_, err := newClient(ctx, oo...)
 	if err != nil {
 		return "", err
 	}
@@ -105,7 +126,7 @@ func bucketFinder(b string, opts ...Option) (string, error) {
 
 // getHeadObject returns the `s3.HeadObjectOutput` of the object at `path`.
 func getHeadObject(ctx context.Context, path string, opts ...Option) (*awsS3.HeadObjectOutput, error) {
-	c, err := GetClient(path, opts...)
+	c, err := GetClient(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -117,22 +138,22 @@ func getHeadObject(ctx context.Context, path string, opts ...Option) (*awsS3.Hea
 	return c.HeadObject(ctx, hoIn)
 }
 
-// hasAccess returns true if the object or prefix at`path`can be accessed even if it does not yet exist.
+// hasAccess returns true if the object or prefix at `path` can be accessed even if it does not yet exist.
 //
 // It supports the option WithProfile.
-func hasAccess(ctx context.Context, path string, opts ...Option) bool {
+func hasAccess(ctx context.Context, path string, opts ...Option) (bool, error) {
 	b, o := Parse(path)
-	c, err := newClientForBucket(b, opts...)
+	c, err := NewClientForBucket(ctx, b, opts...)
 	if err != nil {
-		return false
+		return false, err
 	}
-	_, err = c.HeadBucket(context.Background(), &awsS3.HeadBucketInput{Bucket: aws.String(b)})
+	_, err = c.HeadBucket(ctx, &awsS3.HeadBucketInput{Bucket: aws.String(b)})
 	if err == nil {
-		return true
+		return true, nil
 	}
 	o = strings.TrimSuffix(o, "/")
 	if o == "" {
-		return false
+		return false, nil
 	}
 	oo := strings.Split(o, "/")
 	i := len(oo)
@@ -142,19 +163,19 @@ func hasAccess(ctx context.Context, path string, opts ...Option) bool {
 			Key: aws.String(key),
 		})
 		if err == nil {
-			return true
+			return true, nil
 		}
 		i--
 		if i == 0 {
 			break
 		}
 	}
-	return false
+	return false, nil
 }
 
 // newClient creates a new client of the default configuration initialized by the package with the options `opts`.
-func newClient(opts ...config.LoadOptionsFunc) (*awsS3.Client, error) {
-	cfg1, err := config2.NewConfig(opts...)
+func newClient(ctx context.Context, opts ...config.LoadOptionsFunc) (*awsS3.Client, error) {
+	cfg1, err := config2.NewConfig(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -168,16 +189,16 @@ func newClient(opts ...config.LoadOptionsFunc) (*awsS3.Client, error) {
 	}), nil
 }
 
-// newClientForBucket creates a new client of the default configuration for the bucket `bucket`.  It supports the option
+// NewClientForBucket creates a new client of the default configuration for the bucket `bucket`.  It supports the option
 // WithProfile.
-func newClientForBucket(bucket string, opts ...Option) (*awsS3.Client, error) {
-	reg, err := bucketFinder(bucket, opts...)
+func NewClientForBucket(ctx context.Context, bucket string, opts ...Option) (*awsS3.Client, error) {
+	reg, err := bucketFinder(ctx, bucket, opts...)
 	if err != nil {
 		return nil, err
 	}
 	o := collectCfg(opts...)
 	o = append(o, config.WithRegion(reg))
-	return newClient(o...)
+	return newClient(ctx, o...)
 }
 
 // getObject returns a GetObjectOutput from the object `path`.  It handles the option WithProfile and passes
@@ -185,7 +206,7 @@ func newClientForBucket(bucket string, opts ...Option) (*awsS3.Client, error) {
 //
 // It supports the option WithProfile.
 func getObject(ctx context.Context, path string, opts ...Option) (*awsS3.GetObjectOutput, error) {
-	c, err := GetClient(path, opts...)
+	c, err := GetClient(ctx, path, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "create client")
 	}
@@ -205,9 +226,7 @@ func getObject1(ctx context.Context, c getObjecter, path string, opts ...Option)
 	}
 	r1 := retrypolicy.NewBuilder[any]().WithMaxRetries(o.retryMaxAttempt).WithDelay(o.retryLapse).
 		HandleIf(isRetryableError).Build()
-	a, err := failsafe.Get(func() (any, error) {
-		return c.GetObject(ctx, goi)
-	}, r1)
+	a, err := failsafe.With(r1).Get(func() (any, error) { return c.GetObject(ctx, goi) })
 	if err != nil {
 		return nil, errors.WithMessagef(err, "key %s", path)
 	}
@@ -220,13 +239,13 @@ func getRetryPolicy(opts ...Option) retrypolicy.RetryPolicy[any] {
 	return retryPolicy
 }
 
-func hasAccessWithRetry(ctx context.Context, path string, opts ...Option) bool {
-	return failsafe.Run(func() error {
-		if hasAccess(ctx, path, opts...) {
+func hasAccessWithRetry(ctx context.Context, path string, opts ...Option) (bool, error) {
+	return failsafe.With(getRetryPolicy(opts...)).Run(func() error {
+		if ok, _ := hasAccess(ctx, path, opts...); ok {
 			return nil
 		}
 		return errFailedFailSafe
-	}, getRetryPolicy(opts...)) == nil
+	}) == nil, nil
 }
 
 func isRetryableError(_ any, err error) bool {
@@ -241,4 +260,9 @@ func isRetryableError(_ any, err error) bool {
 		}
 	}
 	return false
+}
+
+func parsePtr(path string) (*string, *string) {
+	a, b := Parse(path)
+	return aws.String(a), aws.String(b)
 }

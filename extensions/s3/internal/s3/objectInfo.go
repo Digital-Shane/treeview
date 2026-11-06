@@ -8,7 +8,7 @@ import (
 
 const defaultMode = 0o755
 
-// ObjectInfo holds the information related to an S3 object.  It implements the interface io/fs/FileInfo.
+// ObjectInfo holds the information related to an S3 object.  It implements the interface fs.FileInfo and fs.DirEntry.
 type ObjectInfo struct {
 	// bucket provides the name of the bucket holding the object.
 	bucket       string
@@ -19,10 +19,19 @@ type ObjectInfo struct {
 	isDir        bool
 }
 
+// Type returns the type bits of the entry as defined by fs.DirEntry.
+func (oi *ObjectInfo) Type() fs.FileMode {
+	return oi.Mode().Type()
+}
+
 // Info returns the ObjectInfo of the object at `path`.  If it is a directory, then IsDir() is true and Size() and
 // ModTime() is meaningless.
 func Info(ctx context.Context, path string, opts ...Option) (*ObjectInfo, error) {
-	if !HasAccess(ctx, path, opts...) {
+	ok, err := HasAccess(ctx, path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		return nil, ErrNoAccess
 	}
 	b, p := Parse(path)
@@ -61,7 +70,6 @@ func (oi *ObjectInfo) Name() string {
 
 // Mode is mandatory for the fs.FileInfo interface.
 func (oi *ObjectInfo) Mode() fs.FileMode {
-
 	if oi.isDir {
 		return fs.ModeDir | defaultMode
 	}
@@ -83,6 +91,14 @@ func (oi *ObjectInfo) Sys() any {
 	return nil
 }
 
+// Info implements the interface fs.DirEntry.
+func (oi *ObjectInfo) Info() (fs.FileInfo, error) {
+	if oi == nil {
+		return nil, fs.ErrNotExist
+	}
+	return oi, nil
+}
+
 // Bucket returns the name of the bucket holding the object.
 func (oi *ObjectInfo) Bucket() string {
 	return oi.bucket
@@ -98,6 +114,11 @@ func (oi *ObjectInfo) Path() string {
 	return oi.key
 }
 
+// S3URI returns the S3 URI of the object.
+func (oi *ObjectInfo) S3URI() string {
+	return unParse(oi.bucket, oi.key)
+}
+
 // Size returns the size of the object.
 func (oi *ObjectInfo) Size() int64 {
 	return oi.size
@@ -108,4 +129,9 @@ func (oi *ObjectInfo) Size() int64 {
 // or "GLACIER_IR".
 func (oi *ObjectInfo) StorageClass() string {
 	return oi.storageClass
+}
+
+// unParse returns the URI of the object defined by `bucket` and `key`.
+func unParse(bucket string, key string) string {
+	return URI + bucket + "/" + key
 }

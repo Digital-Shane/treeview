@@ -3,9 +3,9 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
-
-	"github.com/pterm/pterm"
+	"strings"
 )
 
 // Run executes the application `app` using the parameters defines by `options`.  It returns the output of the
@@ -33,25 +33,26 @@ func Run(app string, opts ...Option) ([]byte, error) {
 			break
 		}
 		availableRetries--
-		pterm.Warning.Printfln("command %s issued error %v %s, retrying", app, err, string(data))
+		fmt.Printf("Warn: command %s issued error %v %s, retrying\n", app, err, string(data))
 	}
 	if !appOpts.verbose {
 		return data, err
 	}
-	s := app1
+	var s strings.Builder
+	s.WriteString(app1)
 	for _, a := range appOpts.args {
-		s += " " + a
+		s.WriteString(" " + a)
 	}
 	if appOpts.verbose {
 		if err != nil {
-			pterm.Error.Printfln("\ncommand %s issued error %v %s", s, err, string(data))
+			fmt.Printf("\nError: command %s issued error %v %s\n", s.String(), err, string(data))
 		}
 	} else {
 		if appOpts.testValue && (err == nil) {
-			pterm.Info.Printfln("\ncommand %s did not issue an error", s)
+			fmt.Printf("\ncommand %s did not issue an error\n", s.String())
 		}
 		if !appOpts.testValue && (err != nil) {
-			pterm.Warning.Printfln("\ncommand %s issued an error", s)
+			fmt.Printf("\nWarn: command %s issued an error\n", s.String())
 		}
 	}
 	return data, err

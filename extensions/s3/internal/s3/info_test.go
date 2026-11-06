@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func Test_ReadDir(t *testing.T) {
+func Test_ListTopObjectsAndPrefixes(t *testing.T) {
 	tests := []struct {
 		path       string
 		expSuccess bool
@@ -19,7 +19,7 @@ func Test_ReadDir(t *testing.T) {
 		{"badBucket/golden", false, 0, nil},
 	}
 	for _, tt := range tests {
-		a, err := ReadDir(context.Background(), tt.path)
+		a, err := ListTopObjectsAndPrefixes(context.Background(), tt.path)
 		if tt.expSuccess != (err == nil) {
 			t.Fatal(err)
 		}
@@ -38,7 +38,7 @@ func Test_ReadDir(t *testing.T) {
 			}
 		}
 	}
-	a, err := ReadDir(context.Background(), Join(_cs3Testdata, "golden", "recurse"))
+	a, err := ListTopObjectsAndPrefixes(context.Background(), Join(_cs3Testdata, "golden", "recurse"))
 	isPanic(err)
 	if a[0].IsDir() != false {
 		t.Error("expected dir to be false")
@@ -54,8 +54,9 @@ func Test_ReadDir(t *testing.T) {
 	}
 }
 
-func Test_DirEntry_is_interface(_ *testing.T) {
-	var _ fs.DirEntry = (*DirEntry)(nil)
+func Test_ObjectInfo_is_interface(_ *testing.T) {
+	var _ fs.DirEntry = (*ObjectInfo)(nil)
+	var _ fs.FileInfo = (*ObjectInfo)(nil)
 }
 
 func Test_IsDir(t *testing.T) {
@@ -85,10 +86,12 @@ func Test_Base(t *testing.T) {
 		{"s3://bucket/prefix", "prefix"},
 		{"s3://bucket", ""},
 		{"", "."},
+		{"object", "object"},
+		{"prefix/object", "object"},
 	}
 	for _, tt := range tests {
 		if tt.result != Base(tt.path) {
-			t.Errorf("%s: expected %s, got %s", tt.path, tt.result, tt.result)
+			t.Errorf("%s: expected %s, got %s", tt.path, tt.result, Base(tt.path))
 		}
 	}
 }

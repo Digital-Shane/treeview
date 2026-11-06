@@ -65,28 +65,25 @@ func (w *walker) Root(ctx context.Context) (treeview.WalkItem[treeview.FileInfo]
 	}, nil
 }
 
-func (w *walker) Children(ctx context.Context, parent treeview.WalkItem[treeview.FileInfo]) ([]treeview.WalkItem[treeview.FileInfo], error) {
+func (w *walker) Children(ctx context.Context,
+	parent treeview.WalkItem[treeview.FileInfo]) ([]treeview.WalkItem[treeview.FileInfo], error) {
 	if !parent.Data.IsDir() {
 		return nil, nil
 	}
 
-	entries, err := internals3.ReadDir(ctx, parent.Data.Path)
+	entries, err := internals3.ListTopObjectsAndPrefixes(ctx, parent.Data.Path, internals3.WithProfile(w.profile))
 	if err != nil {
 		return nil, pathError(treeview.ErrDirectoryScan, parent.Data.Path, err)
 	}
 
 	children := make([]treeview.WalkItem[treeview.FileInfo], 0, len(entries))
-	for _, entry := range entries {
+	for i := range entries {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		childPath := internals3.Join(parent.Data.Path, entry.Name())
-		info, err := entry.Info()
-		if err != nil {
-			return nil, pathError(treeview.ErrFileSystem, childPath, err)
-		}
-
+		info := &entries[i]
+		childPath := internals3.Join(parent.Data.Path, info.Name())
 		children = append(children, treeview.WalkItem[treeview.FileInfo]{
 			ID:   childPath,
 			Name: info.Name(),

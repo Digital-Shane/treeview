@@ -31,7 +31,7 @@ var _cached cache
 
 // NewConfig returns a configuration with the given options.  If there are no options, it is the default configuration.
 // The supported options are `WithLocalStack`.
-func NewConfig(opts ...config.LoadOptionsFunc) (cfg aws.Config, err error) {
+func NewConfig(ctx context.Context, opts ...config.LoadOptionsFunc) (cfg aws.Config, err error) {
 	var opa []func(loadOptions *config.LoadOptions) error
 	const cDefaultRegion = "us-west-2" // The default region used if the configuration does not define a region.
 	for _, opt := range opts {
@@ -40,7 +40,7 @@ func NewConfig(opts ...config.LoadOptionsFunc) (cfg aws.Config, err error) {
 	if os.Getenv(AwsProfile) != "" {
 		opa = append(opa, config.WithSharedConfigProfile(os.Getenv(AwsProfile)))
 	}
-	cfg, err = config.LoadDefaultConfig(context.Background(), opa...)
+	cfg, err = config.LoadDefaultConfig(ctx, opa...)
 	if err != nil {
 		return aws.Config{}, err
 	}
@@ -60,19 +60,6 @@ func NewConfig(opts ...config.LoadOptionsFunc) (cfg aws.Config, err error) {
 // ClearCached clears the cached configuration.
 func ClearCached() {
 	_cached.clear()
-}
-
-// SetProfile sets the AWS profile to use by `go-aws`.  If the profile is empty, it uses the default profile.
-// It returns the current profile used by `go-aws` and an error if any.
-func SetProfile(profile string) (string, error) {
-	if profile == "" {
-		profile = "default"
-	}
-	old, ok := os.LookupEnv(AwsProfile)
-	if !ok {
-		old = "default"
-	}
-	return old, os.Setenv(AwsProfile, profile)
 }
 
 // ---------------------------------

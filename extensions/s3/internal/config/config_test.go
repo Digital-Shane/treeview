@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -15,14 +16,14 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewConfig(t *testing.T) {
-	c, err := NewConfig()
+	c, err := NewConfig(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cmp.Equal(aws.Config{}, c) {
 		t.Error("NewConfig should not return default config")
 	}
-	_, err = NewConfig()
+	_, err = NewConfig(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

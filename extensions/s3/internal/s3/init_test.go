@@ -9,7 +9,7 @@ import (
 
 const (
 	_myTestBucket = "example.com"
-	_cS3          = _cS3URI + _myTestBucket
+	_cS3          = URI + _myTestBucket
 	_cs3Testdata  = _cS3 + "/testdata"
 	_c100K        = "sample100K.golden"
 	_c1M          = "sample1M.golden"
